@@ -34,7 +34,7 @@ func SetupTestDB(t *testing.T) *TestDB {
 }
 
 func (tdb *TestDB) Cleanup(t *testing.T) {
-	_, err := tdb.DB.Exec("DELETE FROM submissions")
+	_, err := tdb.DB.Exec("TRUNCATE TABLE submissions, users, review_schedules CASCADE")
 	if err != nil {
         t.Errorf("Could not drop test database: %v", err)
     }

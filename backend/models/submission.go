@@ -97,3 +97,22 @@ func (s *SubmissionStore) GetSubmissionsByUserID(userID int)([]Submission, error
 
 	return submissions, nil
 }
+
+func (s *SubmissionStore) CheckSubmissionExists (submissionID string, userID int) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM submissions
+			WHERE id = $1 AND user_id = $2
+		)
+	`
+
+	var exists bool 
+	err := s.db.QueryRow(query, submissionID, userID).Scan(&exists)
+
+	if err != nil {
+		return false, fmt.Errorf("error checking submission existence : %v", err)
+	}
+
+	return exists, nil
+}

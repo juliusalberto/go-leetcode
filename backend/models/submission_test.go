@@ -81,6 +81,21 @@ func TestGetSubmissionByUserID(t *testing.T) {
 	}
 }
 
+func TestCheckSubmissionExist(t *testing.T) {
+	testDB := database.SetupTestDB(t)
+	defer testDB.Cleanup(t)
+
+	ss := NewSubmissionStore(testDB.DB)
+	setUpData(t, ss)
+
+	status, err := ss.CheckSubmissionExists("123", 1)
+	checkErr(t, err, "There is an error in getting the submission")
+
+	if status != true {
+		t.Errorf("Submission not found")
+	}
+}
+
 func checkErr(t *testing.T, err error, msg string) {
 	if err != nil {
 		t.Fatalf("%s: %v", msg, err)

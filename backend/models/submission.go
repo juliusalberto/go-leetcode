@@ -98,7 +98,7 @@ func (s *SubmissionStore) GetSubmissionsByUserID(userID int)([]Submission, error
 	return submissions, nil
 }
 
-func (s *SubmissionStore) CheckSubmissionExists (submissionID string, userID int) (bool, error) {
+func (s *SubmissionStore) CheckSubmissionExists(submissionID string, userID int) (bool, error) {
 	query := `
 		SELECT EXISTS (
 			SELECT 1

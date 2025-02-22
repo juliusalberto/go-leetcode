@@ -68,3 +68,7 @@ func (s *SubmissionStore) GetSubmissionByID(id string)(Submission, error) {
 
 	return sub, nil 
 }
+
+func (s *SubmissionStore) GetSubmissionsByUserID(userID int)([]Submission, error) {
+	return []Submission{}, nil
+}

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -61,7 +60,6 @@ func SetupTestDB(t *testing.T) *TestDB {
 		t.Fatalf("Could not connect to test database: %v", err)
 	}
 
-	testDB.Exec("INSERT INTO users (id, username, created_at) VALUES ($1, $2, $3)", 1, "test_user", time.Now())
 
 	return &TestDB{DB: testDB}
 }

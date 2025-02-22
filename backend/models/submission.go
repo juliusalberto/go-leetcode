@@ -70,5 +70,30 @@ func (s *SubmissionStore) GetSubmissionByID(id string)(Submission, error) {
 }
 
 func (s *SubmissionStore) GetSubmissionsByUserID(userID int)([]Submission, error) {
-	return []Submission{}, nil
+	query := `
+		SELECT id, user_id, title, title_slug, submitted_at, created_at 
+		FROM submissions WHERE user_id = $1
+	`
+	rows, err := s.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var submissions []Submission
+
+	for rows.Next() {
+		var sub Submission
+		if err := rows.Scan(&sub.ID, &sub.UserID, &sub.Title, &sub.TitleSlug, &sub.SubmittedAt, &sub.CreatedAt); err != nil {
+			return submissions, err
+		}
+
+		submissions = append(submissions, sub)
+	}
+
+	if err = rows.Err(); err != nil {
+		return submissions, err
+	}
+
+
+	return submissions, nil
 }

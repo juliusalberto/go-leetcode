@@ -8,7 +8,7 @@ import (
 )
 
 func setUpData(t *testing.T, ss *SubmissionStore) {
-	ss.db.Exec("INSERT INTO users (id, username, created_at) VALUES ($1, $2, $3)", 1, "test_user", time.Now())
+	ss.db.Exec("INSERT INTO users (id, username, leetcode_username, created_at) VALUES ($1, $2, $3, $4)", 1, "test_user", "test_user", time.Now())
 
 	sub := Submission{
 		ID:          "123",

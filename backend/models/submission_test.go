@@ -3,6 +3,7 @@ package models
 import (
 	"go-leetcode/backend/internal/database"
 	"testing"
+	"go-leetcode/backend/internal/testutils"
 	"time"
 )
 
@@ -60,10 +61,10 @@ func TestGetSubmissionByUserID(t *testing.T) {
 	}
 
 	err := ss.CreateSubmission(sub)
-	checkErr(t, err, "Failed to create submission")
+	testutils.CheckErr(t, err, "Failed to create submission")
 
 	submissions, err := ss.GetSubmissionsByUserID(1)
-	checkErr(t, err, "Failed to get submissions by user ID")
+	testutils.CheckErr(t, err, "Failed to get submissions by user ID")
 
 	if len(submissions) != 2 {
 		t.Fatalf("Expected 2 submissions, got %d", len(submissions))
@@ -89,15 +90,10 @@ func TestCheckSubmissionExist(t *testing.T) {
 	setUpData(t, ss)
 
 	status, err := ss.CheckSubmissionExists("123", 1)
-	checkErr(t, err, "There is an error in getting the submission")
+	testutils.CheckErr(t, err, "There is an error in getting the submission")
 
 	if status != true {
 		t.Errorf("Submission not found")
 	}
 }
 
-func checkErr(t *testing.T, err error, msg string) {
-	if err != nil {
-		t.Fatalf("%s: %v", msg, err)
-	}
-}

@@ -42,5 +42,29 @@ func (s *SubmissionStore) CreateSubmission(sub Submission) error {
 }
 
 func (s *SubmissionStore) GetSubmissionByID(id string)(Submission, error) {
-	return Submission{}, nil 
+	var sub Submission
+
+	query := `
+		SELECT id, user_id, title, title_slug, submitted_at, created_at 
+		FROM submissions WHERE ID = $1
+	`
+
+	err := s.db.QueryRow(query, id).Scan(
+		&sub.ID,
+		&sub.UserID,
+		&sub.Title,
+		&sub.TitleSlug,
+		&sub.SubmittedAt,
+		&sub.CreatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return Submission{}, fmt.Errorf("submission with ID %s not found", id)
+		}
+
+		return Submission{}, fmt.Errorf("error fetching submission: %v", err)
+	}
+
+	return sub, nil 
 }

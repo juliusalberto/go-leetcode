@@ -17,18 +17,30 @@ type Submission struct {
 	CreatedAt	time.Time
 }
 
-func CreateSubmission(db *sql.DB, sub Submission) error {
+type SubmissionStore struct {
+	db *sql.DB
+}
+
+func NewSubmissionStore(db *sql.DB) *SubmissionStore {
+	return &SubmissionStore{db: db}
+}
+
+func (s *SubmissionStore) CreateSubmission(sub Submission) error {
 	query := `
 		INSERT INTO submissions
 		(id, user_id, title, title_slug, submitted_at, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
-	_, err := db.Exec(query, sub.ID, sub.UserID, sub.Title, sub.TitleSlug, sub.SubmittedAt, sub.CreatedAt)
+	_, err := s.db.Exec(query, sub.ID, sub.UserID, sub.Title, sub.TitleSlug, sub.SubmittedAt, sub.CreatedAt)
 
     if err != nil {
         return fmt.Errorf("error creating submission: %v", err)
     }
 
 	return nil
+}
+
+func (s *SubmissionStore) GetSubmissionByID(id string)(Submission, error) {
+	return Submission{}, nil 
 }

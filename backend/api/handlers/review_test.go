@@ -1,29 +1,58 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"go-leetcode/backend/internal/database"
 	"go-leetcode/backend/internal/testutils"
 	"go-leetcode/backend/models"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 )
 
-func setupReviewTest(t *testing.T)(*ReviewHandler, *database.TestDB) {
+func setupReviewTest(t *testing.T)(*ReviewHandler, *database.TestDB, int) {
 	testDB := database.SetupTestDB(t)
 	reviewStore := models.NewReviewScheduleStore(testDB.DB)
+	submissionStore := models.NewSubmissionStore(testDB.DB)
+	userStore := models.NewUserStore(testDB.DB)
 	handler := NewReviewHandler(reviewStore)
-	return handler, testDB
+
+	// create user first
+	testUser := models.User{
+		Username: "testuser",
+		LeetcodeUsername: "test_leetcode",
+	}
+
+	userStore.CreateUser(&testUser)
+
+	for i := 0; i < 5; i++ {
+		testSub := models.Submission{
+			ID: strconv.Itoa(i + 1),
+			UserID: testUser.ID,
+			Title: fmt.Sprintf("%d Sum", i + 1),
+			TitleSlug: fmt.Sprintf("%d-sum", i + 1),
+			SubmittedAt: time.Now(),
+			CreatedAt: time.Now(),
+		}
+
+		if err := submissionStore.CreateSubmission(testSub); err != nil {
+			t.Errorf("Failed to create submission")
+		}
+	}
+
+	return handler, testDB, testUser.ID
 }
 
 func TestGetUpcomingReviewHandler(t *testing.T) {
-	handler, testDB := setupReviewTest(t)
+	handler, testDB, userID := setupReviewTest(t)
 	defer testDB.Cleanup(t)
 
 	testReview := models.ReviewSchedule{
-		SubmissionID: "test_submission_id",
+		SubmissionID: "1",
 		NextReviewAt: time.Now(),
 		IntervalDays: 1,
 		TimesReviewed: 0,
@@ -33,7 +62,16 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 	err := handler.store.CreateReviewSchedule(&testReview)
 	testutils.CheckErr(t, err, "Failed to create test review")
 
-	req := httptest.NewRequest("GET", "/reviews/upcoming", nil)
+	testData := map[string]int{
+		"user_id": userID,
+	}
+
+	jsonData, err := json.Marshal(testData)
+	if err != nil {
+    	t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/reviews/upcoming", bytes.NewBuffer(jsonData))
 	rr := httptest.NewRecorder()
 
 	handler.GetUpcomingReviews(rr, req)

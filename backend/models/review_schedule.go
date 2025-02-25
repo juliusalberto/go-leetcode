@@ -114,6 +114,67 @@ func (s *ReviewScheduleStore) GetUpcomingReviews(userID int) ([]ReviewSchedule, 
     return reviews, nil
 }
 
+func (s *ReviewScheduleStore) GetReviewsByUserID(userID int) ([]ReviewSchedule, error) {
+    query := `
+        SELECT r.id, r.submission_id, r.next_review_at, r.interval_days, r.times_reviewed, r.created_at
+        FROM review_schedules r
+        JOIN submissions s ON r.submission_id = s.id
+        WHERE s.user_id = $1
+        ORDER BY r.created_at
+    `
+
+    rows, err := s.db.Query(query, userID)
+    if err != nil {
+        return nil, fmt.Errorf("error fetching upcoming reviews: %v", err)
+    }
+    defer rows.Close()
+
+    var reviews []ReviewSchedule
+    for rows.Next() {
+        var review ReviewSchedule
+        if err := rows.Scan(
+            &review.ID,
+            &review.SubmissionID,
+            &review.NextReviewAt,
+            &review.IntervalDays,
+            &review.TimesReviewed,
+            &review.CreatedAt,
+        ); err != nil {
+            return nil, fmt.Errorf("error scanning review: %v", err)
+        }
+        reviews = append(reviews, review)
+    }
+
+    return reviews, nil
+}
+
+func (s *ReviewScheduleStore) GetReviewByID(reviewID int) (ReviewSchedule, error) {
+    query := `
+        SELECT id, submission_id, next_review_at, interval_days, times_reviewed, created_at
+        FROM review_schedules
+        WHERE id = $1
+    `
+
+    var review ReviewSchedule
+    err := s.db.QueryRow(query, reviewID).Scan(
+        &review.ID,
+        &review.SubmissionID,
+        &review.NextReviewAt,
+        &review.IntervalDays,
+        &review.TimesReviewed,
+        &review.CreatedAt,
+    )
+    
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return ReviewSchedule{}, fmt.Errorf("review with ID %d not found", reviewID)
+        }
+        return ReviewSchedule{}, fmt.Errorf("error fetching review: %v", err)
+    }
+
+    return review, nil
+}
+
 func (s *ReviewScheduleStore) UpdateReviewSchedule(review *ReviewSchedule) error {
     query := `
         UPDATE review_schedules

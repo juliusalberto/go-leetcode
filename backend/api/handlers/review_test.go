@@ -90,3 +90,68 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 		t.Errorf("unexpected response: %+v", response)
 	}
 }
+
+func TestUpdateReviewSchedule(t *testing.T) {
+	handler, testDB, _ := setupReviewTest(t)
+	defer testDB.Cleanup(t)
+
+	testReview := models.ReviewSchedule{
+		SubmissionID: "1",
+		NextReviewAt: time.Now(),
+		IntervalDays: 1,
+		TimesReviewed: 0,
+		CreatedAt: time.Now(),
+	}
+
+	err := handler.store.CreateReviewSchedule(&testReview)
+	testutils.CheckErr(t, err, "Failed to create test review")
+	nextReview := time.Now().Add(24 * time.Hour)
+
+	testData := map[string]interface{}{
+		"review_id": testReview.ID,
+		"next_review_at": nextReview.Format(time.RFC3339),
+		"times_reviewed": testReview.TimesReviewed + 1,
+		"interval_days": 3,
+	}
+
+	jsonData, err := json.Marshal(testData)
+	testutils.CheckErr(t, err, "Failed to marshal json data")
+
+	req := httptest.NewRequest("PUT", "/reviews/update", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler.UpdateReviewSchedule(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", rr.Code)
+	}
+	
+	// check if the review is updated
+	updatedReview, err := handler.store.GetReviewByID(testReview.ID)
+	testutils.CheckErr(t, err, "Failed to get review")
+
+	if updatedReview.IntervalDays != 3 {
+		t.Errorf("Expected interval_days to be 3, got %d", updatedReview.IntervalDays)
+	}
+	
+	if updatedReview.TimesReviewed != 1 {
+		t.Errorf("Expected times_reviewed to be 1, got %d", updatedReview.TimesReviewed)
+	}
+	
+	// Check if next_review_at was updated to approximately the expected time
+	// Using a small delta to account for processing time differences
+	expectedTime := nextReview.Unix()
+	actualTime := updatedReview.NextReviewAt.Unix()
+	if abs(expectedTime - actualTime) > 1 { // within 1 second
+		t.Errorf("Expected next_review_at to be close to %v, got %v", 
+			nextReview, updatedReview.NextReviewAt)
+	}
+}
+
+func abs(n int64) int64 {
+	if n < 0 {
+		return -n
+	}
+	return n
+}

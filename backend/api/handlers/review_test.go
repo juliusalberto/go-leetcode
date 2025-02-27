@@ -170,7 +170,6 @@ func TestCreateNewReview(t *testing.T) {
 	newReviewData := map[string]interface{}{
 		"submission_id": testSubmission.ID,
 		"interval_days": 1,
-		"times_reviewed": 0,
 	}
 	
 	jsonData, err := json.Marshal(newReviewData)

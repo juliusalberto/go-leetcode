@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"go-leetcode/backend/models"
 	"net/http"
-	"net/http/httptest"
 	"time"
 )
 
@@ -12,8 +11,35 @@ type ReviewHandler struct {
 	store *models.ReviewScheduleStore
 }
 
-func (h *ReviewHandler) CreateReview(rr *httptest.ResponseRecorder, req *http.Request) {
-	panic("unimplemented")
+
+func (h *ReviewHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		SubmissionID string `json:"submission_id"`
+		IntervalDays int `json:"interval_days"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
+	}
+
+
+	reviewToAdd := models.ReviewSchedule {
+		SubmissionID: req.SubmissionID,
+		IntervalDays: req.IntervalDays,
+		TimesReviewed: 0,
+		NextReviewAt: time.Now().UTC().AddDate(0, 0, req.IntervalDays),
+		CreatedAt: time.Now().UTC(),
+	}
+
+	err := h.store.CreateReviewSchedule(&reviewToAdd)
+	if err != nil {
+		http.Error(w, "Failed to create new review", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]int{"id": reviewToAdd.ID})
 }
 
 type UpdateRequest struct {

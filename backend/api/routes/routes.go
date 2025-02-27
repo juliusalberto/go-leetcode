@@ -36,6 +36,7 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger,) chi.Router {
 	router.Route("/api/reviews", func(router chi.Router) {
 		router.Get("/upcoming", reviewHandler.GetUpcomingReviews)
 		router.Put("/update", reviewHandler.UpdateReviewSchedule)
+		router.Post("/create", reviewHandler.CreateReview)
 	})
 
 	return router

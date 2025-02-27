@@ -89,7 +89,7 @@ func TestCheckSubmissionExist(t *testing.T) {
 	ss := NewSubmissionStore(testDB.DB)
 	setUpData(t, ss)
 
-	status, err := ss.CheckSubmissionExists("123", 1)
+	status, err := ss.CheckSubmissionExists("123")
 	testutils.CheckErr(t, err, "There is an error in getting the submission")
 
 	if status != true {

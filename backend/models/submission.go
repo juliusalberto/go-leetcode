@@ -9,12 +9,12 @@ import (
 )
 
 type Submission struct {
-	ID 			string
-	UserID		int
-	Title		string 
-	TitleSlug 	string
-	SubmittedAt time.Time
-	CreatedAt	time.Time
+	ID 			string			`json:"id"`
+	UserID		int				`json:"user_id"`
+	Title		string 			`json:"title"`
+	TitleSlug 	string			`json:"title_slug"`
+	SubmittedAt time.Time		`json:"submitted_at"`
+	CreatedAt	time.Time		`json:"created_at"`
 }
 
 type SubmissionStore struct {
@@ -98,17 +98,17 @@ func (s *SubmissionStore) GetSubmissionsByUserID(userID int)([]Submission, error
 	return submissions, nil
 }
 
-func (s *SubmissionStore) CheckSubmissionExists(submissionID string, userID int) (bool, error) {
+func (s *SubmissionStore) CheckSubmissionExists(submissionID string) (bool, error) {
 	query := `
 		SELECT EXISTS (
 			SELECT 1
 			FROM submissions
-			WHERE id = $1 AND user_id = $2
+			WHERE id = $1
 		)
 	`
 
 	var exists bool 
-	err := s.db.QueryRow(query, submissionID, userID).Scan(&exists)
+	err := s.db.QueryRow(query, submissionID).Scan(&exists)
 
 	if err != nil {
 		return false, fmt.Errorf("error checking submission existence : %v", err)

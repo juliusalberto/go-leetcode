@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"go-leetcode/backend/models"
 	"net/http"
+	"net/http/httptest"
 	"time"
 )
 
@@ -11,17 +12,21 @@ type ReviewHandler struct {
 	store *models.ReviewScheduleStore
 }
 
+func (h *ReviewHandler) CreateReview(rr *httptest.ResponseRecorder, req *http.Request) {
+	panic("unimplemented")
+}
+
 type UpdateRequest struct {
-	ID 				int
-	NextReviewAt 	time.Time
-	TimesReviewed	int
+	ID            int
+	NextReviewAt  time.Time
+	TimesReviewed int
 }
 
 type GetReviewRequest struct {
 	UserID int `json:"user_id"`
 }
 
-func NewReviewHandler(store *models.ReviewScheduleStore)(*ReviewHandler) {
+func NewReviewHandler(store *models.ReviewScheduleStore) *ReviewHandler {
 	return &ReviewHandler{store: store}
 }
 
@@ -44,7 +49,7 @@ func (h *ReviewHandler) GetUpcomingReviews(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Failed to get upcoming reviews", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// write it down as json
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -53,10 +58,10 @@ func (h *ReviewHandler) GetUpcomingReviews(w http.ResponseWriter, r *http.Reques
 
 func (h *ReviewHandler) UpdateReviewSchedule(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ID int `json:"review_id"`
-		NextReviewAt string `json:"next_review_at"`
-		TimesReviewed int `json:"times_reviewed"`
-		IntervalDays int `json:"interval_days"`
+		ID            int    `json:"review_id"`
+		NextReviewAt  string `json:"next_review_at"`
+		TimesReviewed int    `json:"times_reviewed"`
+		IntervalDays  int    `json:"interval_days"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

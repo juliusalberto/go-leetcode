@@ -149,6 +149,67 @@ func TestUpdateReviewSchedule(t *testing.T) {
 	}
 }
 
+func TestCreateNewReview(t *testing.T) {
+	handler, testDB, userID := setupReviewTest(t)
+	defer testDB.Cleanup(t)
+
+	// First create a submission (this should exist for the review to reference)
+	submissionStore := models.NewSubmissionStore(testDB.DB)
+	testSubmission := models.Submission{
+		ID:          "test_submission_123",
+		UserID:      userID,
+		Title:       "Two Sum",
+		TitleSlug:   "two-sum",
+		SubmittedAt: time.Now().UTC(),
+		CreatedAt:   time.Now().UTC(),
+	}
+	
+	err := submissionStore.CreateSubmission(testSubmission)
+	testutils.CheckErr(t, err, "Failed to create test submission")
+	
+	newReviewData := map[string]interface{}{
+		"submission_id": testSubmission.ID,
+		"interval_days": 1,
+		"times_reviewed": 0,
+	}
+	
+	jsonData, err := json.Marshal(newReviewData)
+	testutils.CheckErr(t, err, "Failed to marshal json data")
+	
+	req := httptest.NewRequest("POST", "/reviews/create", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	
+	handler.CreateReview(rr, req)
+	
+	if rr.Code != http.StatusCreated {
+		t.Errorf("Expected status 201 Created, got %d", rr.Code)
+	}
+	
+
+	var response struct {
+		ID int `json:"id"`
+	}
+	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	testutils.CheckErr(t, err, "Failed to unmarshal response")
+	
+	review, err := handler.store.GetReviewByID(response.ID)
+	testutils.CheckErr(t, err, "Failed to get created review")
+	
+	if review.SubmissionID != testSubmission.ID {
+		t.Errorf("Expected submission ID %s, got %s", testSubmission.ID, review.SubmissionID)
+	}
+	
+	if review.IntervalDays != 1 {
+		t.Errorf("Expected interval days 1, got %d", review.IntervalDays)
+	}
+	
+	// Verify next review date is in the future
+	if !review.NextReviewAt.After(time.Now().UTC()) {
+		t.Errorf("Next review date should be in the future")
+	}
+}
+
 func abs(n int64) int64 {
 	if n < 0 {
 		return -n

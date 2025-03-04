@@ -15,11 +15,28 @@ type SubmissionHandler struct {
 	store *models.SubmissionStore
 }
 
-func (s *SubmissionHandler) GetSubmissions(w http.ResponseWriter, req *http.Request) {
-	panic("unimplemented")
+func (s *SubmissionHandler) GetSubmissions(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID int `json:"user_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	submissions, err := s.store.GetSubmissionsByUserID(req.UserID)
+	if err != nil {
+		http.Error(w, "Failed to get submission", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(submissions)
 }
 
-func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, req *http.Request) {
+func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Request) {
 	var subReq struct{
 		UserID int`json:"user_id"`
 		Title string `json:"title"`
@@ -27,7 +44,7 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, req *http.Re
 		SubmittedAt string `json:"submitted_at"`
 	}
 
-	if err := json.NewDecoder(req.Body).Decode(&subReq); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&subReq); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 	}
 

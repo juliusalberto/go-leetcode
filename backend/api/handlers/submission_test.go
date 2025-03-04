@@ -73,7 +73,8 @@ func TestCreateSubmission(t *testing.T) {
 }
 
 func TestGetSubmission(t *testing.T) {
-	handler, _, userID := setupSubmissionTest(t)
+	handler, testDB, userID := setupSubmissionTest(t)
+	defer testDB.Cleanup(t)
 
 	for i := 0; i < 3; i++ {
 		sub := models.Submission{
@@ -115,8 +116,8 @@ func TestGetSubmission(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		if !strings.HasPrefix(submissions[i].TitleSlug, "internal-test") {
-			t.Errorf("Expected to have 'internal-test' as the prefix for test slug, got %s", submissions[i].TitleSlug)
+		if !strings.HasPrefix(submissions[i].TitleSlug, "test-problem") {
+			t.Errorf("Expected to have 'test-problem' as the prefix for test slug, got %s", submissions[i].TitleSlug)
 		}
 	}
 }

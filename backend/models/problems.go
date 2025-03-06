@@ -1,9 +1,10 @@
-package models 
+package models
 
 import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -166,4 +167,174 @@ func (s *ProblemStore) GetProblemByFrontendID (FrontendID string)(Problem, error
 	}
 
 	return problem, nil
+}
+
+type ProblemFilter struct {
+	Difficulty string 
+	Tags []string 
+	SearchKeyword string 
+	PaidOnly *bool
+}
+
+type ListProblemOptions struct {
+	Filter ProblemFilter
+	Limit int
+	Offset int
+	OrderBy string // field to order by (e.g. difficulty)
+	OrderDir string // asc or desc
+}
+
+type ProblemList struct {
+    Problems []Problem
+    Total    int
+}
+
+func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, error) {
+	baseQuery := `
+		SELECT id, frontend_id, title, title_slug, difficulty, is_paid_only, content, topic_tags, 
+		example_testcases, similar_questions, created_at FROM problems WHERE 1 = 1
+	`
+
+	countQuery := `SELECT COUNT(*) FROM problems WHERE 1 = 1`
+
+	// and then we add the query based on the filter 
+	var whereClause string 
+	var params []interface{}
+	paramPos := 1
+
+	if options.Filter.Difficulty != "" {
+		whereClause += fmt.Sprintf(" AND difficulty = $%d", paramPos)
+		params = append(params, options.Filter.Difficulty)
+		paramPos++
+	}
+
+	if options.Filter.PaidOnly != nil {
+		whereClause += fmt.Sprintf(" AND is_paid_only = $%d", paramPos)
+		params = append(params, *options.Filter.PaidOnly)
+		paramPos++
+	}
+
+	if options.Filter.SearchKeyword != "" {
+		whereClause += fmt.Sprintf(" AND title ILIKE $%d", paramPos)
+		params = append(params, options.Filter.SearchKeyword)
+		paramPos++
+	}
+
+	if len(options.Filter.Tags) > 0 {
+		tagConditions := []string{}
+
+		for _, tag := range options.Filter.Tags {
+			tagParam := paramPos
+			tagClause := fmt.Sprintf("topic_tags @> %d::jsonb", tagParam)
+			tagConditions = append(tagConditions, tagClause)
+
+			tagStruct := []map[string]string{
+				{"slug": tag},
+			}
+
+			jsonb, err := json.Marshal(tagStruct)
+			if err != nil {
+				return ProblemList{}, err
+			}
+
+			params = append(params, jsonb)
+			paramPos++
+		}
+		whereClause += " AND (" + strings.Join(tagConditions, " OR ") + ")"
+	}
+
+	var orderClause string
+
+	if options.OrderBy != "" {
+		direction := "ASC"
+
+		if options.OrderDir == "desc" {
+			direction = "DESC"
+		}
+
+		validColumns := map[string]string{
+            "difficulty": "difficulty",
+            "title": "title",
+            "frontend_id": "frontend_id",
+            "created_at": "created_at",
+        }
+
+		if column, exists := validColumns[options.OrderBy]; exists {
+			orderClause = fmt.Sprintf(" ORDER BY %s %s", column, direction)
+		} else {
+			orderClause = " ORDER BY frontend_id, ASC"
+		}
+	} else {
+		orderClause = " ORDER BY frontend_id, ASC"
+	}
+
+	// apply pagination
+
+	limitOffsetClause := fmt.Sprintf(" LIMIT $%d, OFFSET $%d", paramPos, paramPos + 1)
+	paramPos += 2
+	
+	params = append(params, options.Limit, options.Offset)
+
+	query := baseQuery + whereClause + orderClause + limitOffsetClause
+    countQuery = countQuery + whereClause
+
+	var total int
+	err := s.db.QueryRow(countQuery, params[:paramPos - 3]...).Scan(&total)
+
+	if err != nil {
+		return ProblemList{}, fmt.Errorf("error counting problems: %v", err)
+	}
+
+	var problems []Problem
+
+	rows, err := s.db.Query(query, params...)
+	defer rows.Close()
+
+	if err != nil {
+		return ProblemList{}, fmt.Errorf("error querying problems: %v", err)
+	}
+
+	for rows.Next() {
+		var problem Problem 
+		var topicTagsString, similarQuestionsString string
+
+		err := rows.Scan(
+			&problem.ID,
+            &problem.FrontendID,
+            &problem.Title,
+            &problem.TitleSlug,
+            &problem.Difficulty,
+            &problem.IsPaidOnly,
+            &problem.Content,
+            &topicTagsString,
+            &problem.ExampleTestcases,
+            &similarQuestionsString,
+            &problem.CreatedAt,
+		)
+
+		if err != nil {
+			return ProblemList{}, fmt.Errorf("error scanning problems row: %v", err)
+		}
+
+		// unmarshal the topic tags string
+		err = json.Unmarshal([]byte(topicTagsString), &problem.TopicTags)
+
+		if err != nil {
+			return ProblemList{}, fmt.Errorf("error unmarshaling topic tags: %v", err)
+		}
+
+		err = json.Unmarshal([]byte(similarQuestionsString), &problem.SimilarQuestions)
+		if err != nil {
+			return ProblemList{}, fmt.Errorf("error unmarshaling similar questions: %v", err)
+		}
+
+		problems = append(problems, problem)
+	}
+
+	// now we already have the problems
+	return ProblemList{
+		Problems: problems,
+		Total: total,
+	}, nil
+
 }

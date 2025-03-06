@@ -1,6 +1,6 @@
 CREATE TABLE problems (
-    id VARCHAR PRIMARY KEY,
-    frontend_id VARCHAR NOT NULL,
+    id int PRIMARY KEY,
+    frontend_id int NOT NULL,
     title VARCHAR NOT NULL,
     title_slug VARCHAR NOT NULL UNIQUE,
     difficulty VARCHAR NOT NULL,

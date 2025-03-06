@@ -22,8 +22,8 @@ type SimilarQuestion struct {
 }
 
 type Problem struct {
-	ID              string          `json:"id"`
-	FrontendID      string          `json:"frontend_id"`
+	ID              int          `json:"id"`
+	FrontendID      int          `json:"frontend_id"`
 	Title           string          `json:"title"`
 	TitleSlug       string          `json:"title_slug"`
 	Difficulty      string          `json:"difficulty"`
@@ -85,7 +85,7 @@ func (s *ProblemStore) GetProblemBySlug(titleSlug string)(Problem, error) {
 	return problem, nil
 }
 
-func (s *ProblemStore) GetProblemByID (ID string)(Problem, error) {
+func (s *ProblemStore) GetProblemByID (ID int)(Problem, error) {
 	var problem Problem
 	var similarQuestionsString, topicTagsString string
 
@@ -110,7 +110,7 @@ func (s *ProblemStore) GetProblemByID (ID string)(Problem, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return Problem{}, fmt.Errorf("problem with ID %s not found", ID)
+			return Problem{}, fmt.Errorf("problem with ID %d not found", ID)
 		}
 
 		return Problem{}, fmt.Errorf("error fetching problem: %v", err)
@@ -121,13 +121,13 @@ func (s *ProblemStore) GetProblemByID (ID string)(Problem, error) {
 	}
 
 	if err = json.Unmarshal([]byte(similarQuestionsString), &problem.SimilarQuestions); err != nil {
-		return Problem{}, fmt.Errorf("")
+		return Problem{}, fmt.Errorf("error in parsing the similar questions tag")
 	}
 
 	return problem, nil
 }
 
-func (s *ProblemStore) GetProblemByFrontendID (FrontendID string)(Problem, error) {
+func (s *ProblemStore) GetProblemByFrontendID (FrontendID int)(Problem, error) {
 	var problem Problem
 	var similarQuestionsString, topicTagsString string
 
@@ -152,7 +152,7 @@ func (s *ProblemStore) GetProblemByFrontendID (FrontendID string)(Problem, error
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return Problem{}, fmt.Errorf("problem with ID %s not found", FrontendID)
+			return Problem{}, fmt.Errorf("problem with ID %d not found", FrontendID)
 		}
 
 		return Problem{}, fmt.Errorf("error fetching problem: %v", err)
@@ -224,20 +224,19 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 		tagConditions := []string{}
 
 		for _, tag := range options.Filter.Tags {
-			tagParam := paramPos
-			tagClause := fmt.Sprintf("topic_tags @> %d::jsonb", tagParam)
+			tagClause := fmt.Sprintf("topic_tags @> $%d::jsonb", paramPos)  
 			tagConditions = append(tagConditions, tagClause)
-
+		
 			tagStruct := []map[string]string{
 				{"slug": tag},
 			}
-
+		
 			jsonb, err := json.Marshal(tagStruct)
 			if err != nil {
 				return ProblemList{}, err
 			}
-
-			params = append(params, jsonb)
+		
+			params = append(params, string(jsonb))  // Convert byte slice to string
 			paramPos++
 		}
 		whereClause += " AND (" + strings.Join(tagConditions, " OR ") + ")"
@@ -262,15 +261,15 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 		if column, exists := validColumns[options.OrderBy]; exists {
 			orderClause = fmt.Sprintf(" ORDER BY %s %s", column, direction)
 		} else {
-			orderClause = " ORDER BY frontend_id, ASC"
+			orderClause = " ORDER BY frontend_id ASC"
 		}
 	} else {
-		orderClause = " ORDER BY frontend_id, ASC"
+		orderClause = " ORDER BY frontend_id ASC"
 	}
 
 	// apply pagination
 
-	limitOffsetClause := fmt.Sprintf(" LIMIT $%d, OFFSET $%d", paramPos, paramPos + 1)
+	limitOffsetClause := fmt.Sprintf(" LIMIT $%d OFFSET $%d", paramPos, paramPos + 1)
 	paramPos += 2
 	
 	params = append(params, options.Limit, options.Offset)
@@ -288,11 +287,12 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 	var problems []Problem
 
 	rows, err := s.db.Query(query, params...)
-	defer rows.Close()
 
 	if err != nil {
 		return ProblemList{}, fmt.Errorf("error querying problems: %v", err)
 	}
+
+	defer rows.Close()
 
 	for rows.Next() {
 		var problem Problem 

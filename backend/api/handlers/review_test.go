@@ -69,16 +69,9 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 	err := handler.store.CreateReviewSchedule(&testReview)
 	testutils.CheckErr(t, err, "Failed to create test review")
 
-	testData := map[string]int{
-		"user_id": userID,
-	}
+	url := fmt.Sprintf("/reviews/upcoming?user_id=%d", userID)
 
-	jsonData, err := json.Marshal(testData)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	req := httptest.NewRequest("GET", "/reviews/upcoming", bytes.NewBuffer(jsonData))
+	req := httptest.NewRequest("GET", url, nil)
 	rr := httptest.NewRecorder()
 
 	handler.GetUpcomingReviews(rr, req)

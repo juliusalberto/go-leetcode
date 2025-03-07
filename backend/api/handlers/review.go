@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"go-leetcode/backend/models"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/open-spaced-repetition/go-fsrs/v3"
@@ -61,25 +62,22 @@ func NewReviewHandler(store *models.ReviewScheduleStore) *ReviewHandler {
 	return &ReviewHandler{store: store}
 }
 
-type GetReviewRequest struct {
-	UserID int `json:"user_id"`
-}
 
 func (h *ReviewHandler) GetUpcomingReviews(w http.ResponseWriter, r *http.Request) {
 	// we want to write the review that is in the db
+	reqUserID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
 
-	var req GetReviewRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
+	if err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
-	if req.UserID < 0 {
+	if reqUserID < 0 {
 		http.Error(w, "UserID should not be below 0", http.StatusBadRequest)
 		return
 	}
 
-	reviews, err := h.store.GetUpcomingReviews(req.UserID)
+	reviews, err := h.store.GetUpcomingReviews(reqUserID)
 	if err != nil {
 		http.Error(w, "Failed to get upcoming reviews", http.StatusInternalServerError)
 		return

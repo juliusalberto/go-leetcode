@@ -185,8 +185,8 @@ type ListProblemOptions struct {
 }
 
 type ProblemList struct {
-    Problems []Problem
-    Total    int
+    Problems []Problem	`json:"problems"`
+    Total    int		`json:"total"`
 }
 
 func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, error) {

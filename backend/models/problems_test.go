@@ -34,6 +34,26 @@ func TestGetProblemByID(t *testing.T) {
 	}
 }
 
+func TestGetProblemBySlug(t *testing.T) {
+	store, testDB := setupTestProblem(t)
+	defer testDB.Cleanup(t)
+
+	// check if we have the correct problem by id
+	problem, err := store.GetProblemBySlug("two-sum")
+	testutils.CheckErr(t, err, "Failed to get problem")
+
+	if (problem.TitleSlug != "two-sum" || problem.FrontendID != 1) {
+		t.Errorf("Expected to get two sum, got: %v", problem)
+	}
+
+	// check another one
+	problem, err = store.GetProblemBySlug("symmetric-tree")
+	testutils.CheckErr(t, err, "Failed to get problem")
+	if (problem.TitleSlug != "symmetric-tree" || problem.FrontendID != 101) {
+		t.Errorf("Expected to get symmetric tree, got: %v", problem)
+	}
+}
+
 func TestGetProblemByFrontendID(t* testing.T) {
 	store, testDB := setupTestProblem(t)
 	defer testDB.Cleanup(t)

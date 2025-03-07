@@ -216,7 +216,7 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 
 	if options.Filter.SearchKeyword != "" {
 		whereClause += fmt.Sprintf(" AND title ILIKE $%d", paramPos)
-		params = append(params, options.Filter.SearchKeyword)
+		params = append(params, "%" + options.Filter.SearchKeyword + "%")
 		paramPos++
 	}
 
@@ -251,17 +251,33 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 			direction = "DESC"
 		}
 
-		validColumns := map[string]string{
-            "difficulty": "difficulty",
-            "title": "title",
-            "frontend_id": "frontend_id",
-            "created_at": "created_at",
-        }
+		if options.OrderBy == "difficulty" {
+			// this is for difficulty
+			// we want when we order by difficulty, the easy / hard one comes first
+			// (depends on the desc or asc)
 
-		if column, exists := validColumns[options.OrderBy]; exists {
-			orderClause = fmt.Sprintf(" ORDER BY %s %s", column, direction)
+			orderClause = fmt.Sprintf(`
+				ORDER BY 
+                CASE 
+                    WHEN LOWER(difficulty) = 'hard' THEN 3
+                    WHEN LOWER(difficulty) = 'medium' THEN 2
+                    WHEN LOWER(difficulty) = 'easy' THEN 1
+                    ELSE 0
+                END %s
+			`, direction)
 		} else {
-			orderClause = " ORDER BY frontend_id ASC"
+			validColumns := map[string]string{
+				"difficulty": "difficulty",
+				"title": "title",
+				"frontend_id": "frontend_id",
+				"created_at": "created_at",
+			}
+	
+			if column, exists := validColumns[options.OrderBy]; exists {
+				orderClause = fmt.Sprintf(" ORDER BY %s %s", column, direction)
+			} else {
+				orderClause = " ORDER BY frontend_id ASC"
+			}
 		}
 	} else {
 		orderClause = " ORDER BY frontend_id ASC"

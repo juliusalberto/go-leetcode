@@ -51,12 +51,19 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 	handler, testDB, userID := setupReviewTest(t)
 	defer testDB.Cleanup(t)
 
+	// Create test review with FSRS fields
 	testReview := models.ReviewSchedule{
-		SubmissionID: "1",
-		NextReviewAt: time.Now(),
-		IntervalDays: 1,
-		TimesReviewed: 0,
-		CreatedAt: time.Now(),
+		SubmissionID:  "1",
+		NextReviewAt:  time.Now().Add(24 * time.Hour),
+		CreatedAt:     time.Now(),
+		Stability:     3.0,
+		Difficulty:    5.0,
+		ElapsedDays:   0,
+		ScheduledDays: 1,
+		Reps:          1,
+		Lapses:        0,
+		State:         2, // Review state
+		LastReview:    time.Now(),
 	}
 
 	err := handler.store.CreateReviewSchedule(&testReview)
@@ -68,7 +75,7 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 
 	jsonData, err := json.Marshal(testData)
 	if err != nil {
-    	t.Fatalf("Failed to marshal JSON: %v", err)
+		t.Fatalf("Failed to marshal JSON: %v", err)
 	}
 
 	req := httptest.NewRequest("GET", "/reviews/upcoming", bytes.NewBuffer(jsonData))
@@ -95,23 +102,28 @@ func TestUpdateReviewSchedule(t *testing.T) {
 	handler, testDB, _ := setupReviewTest(t)
 	defer testDB.Cleanup(t)
 
+	// Create test review with FSRS fields
 	testReview := models.ReviewSchedule{
-		SubmissionID: "1",
-		NextReviewAt: time.Now().UTC(),
-		IntervalDays: 1,
-		TimesReviewed: 0,
-		CreatedAt: time.Now().UTC(),
+		SubmissionID:  "1",
+		NextReviewAt:  time.Now().UTC(),
+		CreatedAt:     time.Now().UTC(),
+		Stability:     3.0,
+		Difficulty:    5.0,
+		ElapsedDays:   0,
+		ScheduledDays: 1,
+		Reps:          1,
+		Lapses:        0,
+		State:         2, // Review state
+		LastReview:    time.Now().UTC(),
 	}
 
 	err := handler.store.CreateReviewSchedule(&testReview)
 	testutils.CheckErr(t, err, "Failed to create test review")
-	nextReview := time.Now().UTC().Add(24 * time.Hour)
 
+	// Test updating with a "Good" rating (3)
 	testData := map[string]interface{}{
 		"review_id": testReview.ID,
-		"next_review_at": nextReview.Format(time.RFC3339),
-		"times_reviewed": testReview.TimesReviewed + 1,
-		"interval_days": 3,
+		"rating":    3, // Good
 	}
 
 	jsonData, err := json.Marshal(testData)
@@ -127,25 +139,40 @@ func TestUpdateReviewSchedule(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", rr.Code)
 	}
 	
-	// check if the review is updated
+	// Parse the response
+	var response map[string]interface{}
+	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	testutils.CheckErr(t, err, "Failed to unmarshal response")
+	
+	// Verify response contains expected fields
+	if _, ok := response["success"]; !ok || response["success"] != true {
+		t.Errorf("Expected success to be true, got %v", response["success"])
+	}
+	
+	if _, ok := response["next_review_at"]; !ok {
+		t.Errorf("Response missing next_review_at field")
+	}
+	
+	if _, ok := response["days_until_review"]; !ok {
+		t.Errorf("Response missing days_until_review field")
+	}
+	
+	// Check if the review was updated in the database
 	updatedReview, err := handler.store.GetReviewByID(testReview.ID)
 	testutils.CheckErr(t, err, "Failed to get review")
 
-	if updatedReview.IntervalDays != 3 {
-		t.Errorf("Expected interval_days to be 3, got %d", updatedReview.IntervalDays)
+	// Verify FSRS fields were updated
+	if updatedReview.Reps <= testReview.Reps {
+		t.Errorf("Expected reps to increase, got %d", updatedReview.Reps)
 	}
 	
-	if updatedReview.TimesReviewed != 1 {
-		t.Errorf("Expected times_reviewed to be 1, got %d", updatedReview.TimesReviewed)
+	if updatedReview.LastReview.Before(testReview.LastReview) {
+		t.Errorf("Expected last_review to be updated")
 	}
 	
-	// Check if next_review_at was updated to approximately the expected time
-	// Using a small delta to account for processing time differences
-	expectedTime := nextReview.Unix()
-	actualTime := updatedReview.NextReviewAt.UTC().Unix()
-	if abs(expectedTime - actualTime) > 60 { // within 1 mins
-		t.Errorf("Expected next_review_at to be close to %v, got %v", 
-			nextReview, updatedReview.NextReviewAt)
+	// Check that next review date is in the future
+	if !updatedReview.NextReviewAt.After(time.Now()) {
+		t.Errorf("Expected next_review_at to be in the future")
 	}
 }
 
@@ -169,7 +196,6 @@ func TestCreateNewReview(t *testing.T) {
 	
 	newReviewData := map[string]interface{}{
 		"submission_id": testSubmission.ID,
-		"interval_days": 1,
 	}
 	
 	jsonData, err := json.Marshal(newReviewData)
@@ -185,7 +211,6 @@ func TestCreateNewReview(t *testing.T) {
 		t.Errorf("Expected status 201 Created, got %d", rr.Code)
 	}
 	
-
 	var response struct {
 		ID int `json:"id"`
 	}
@@ -199,19 +224,21 @@ func TestCreateNewReview(t *testing.T) {
 		t.Errorf("Expected submission ID %s, got %s", testSubmission.ID, review.SubmissionID)
 	}
 	
-	if review.IntervalDays != 1 {
-		t.Errorf("Expected interval days 1, got %d", review.IntervalDays)
+	// Verify FSRS fields are set
+	if review.Stability <= 0 {
+		t.Errorf("Expected stability > 0, got %f", review.Stability)
+	}
+	
+	if review.Reps != 1 {
+		t.Errorf("Expected reps to be 1, got %d", review.Reps)
+	}
+	
+	if review.State < 0 || review.State > 3 {
+		t.Errorf("Expected valid state (0-3), got %d", review.State)
 	}
 	
 	// Verify next review date is in the future
 	if !review.NextReviewAt.After(time.Now().UTC()) {
 		t.Errorf("Next review date should be in the future")
 	}
-}
-
-func abs(n int64) int64 {
-	if n < 0 {
-		return -n
-	}
-	return n
 }

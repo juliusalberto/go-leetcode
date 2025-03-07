@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go-leetcode/backend/models"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,18 +17,23 @@ type SubmissionHandler struct {
 }
 
 func (s *SubmissionHandler) GetSubmissions(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		UserID int `json:"user_id"`
+	// Extract user_id from query parameters
+	userIDStr := r.URL.Query().Get("user_id")
+	
+	if userIDStr == "" {
+		http.Error(w, "Missing user_id parameter", http.StatusBadRequest)
+		return
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "Invalid user_id parameter", http.StatusBadRequest)
 		return
 	}
 
-	submissions, err := s.store.GetSubmissionsByUserID(req.UserID)
+	submissions, err := s.store.GetSubmissionsByUserID(userID)
 	if err != nil {
-		http.Error(w, "Failed to get submission", http.StatusInternalServerError)
+		http.Error(w, "Failed to get submissions", http.StatusInternalServerError)
 		return
 	}
 

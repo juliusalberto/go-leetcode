@@ -90,16 +90,11 @@ func TestGetSubmission(t *testing.T) {
 		testutils.CheckErr(t, err, "Failed to create submission")
 	}
 
-	testData := map[string]int {
-		"user_id": userID,
-	}
-
-	// send the testdata towards the endpoint
-	jsonData, err := json.Marshal(testData)
-	testutils.CheckErr(t, err, "Failed to marshal json")
-
-	req := httptest.NewRequest("GET", "/submissions", bytes.NewBuffer(jsonData))
-	req.Header.Set("Content-Type", "application/json")
+	// Create URL with query parameter instead of using JSON body
+	url := fmt.Sprintf("/submissions?user_id=%d", userID)
+	
+	// Create request with query parameters and no body
+	req := httptest.NewRequest("GET", url, nil)
 	rr := httptest.NewRecorder()
 
 	handler.GetSubmissions(rr, req)
@@ -108,7 +103,7 @@ func TestGetSubmission(t *testing.T) {
 	}
 
 	var submissions []models.Submission
-	err = json.Unmarshal(rr.Body.Bytes(), &submissions)
+	err := json.Unmarshal(rr.Body.Bytes(), &submissions)
 	testutils.CheckErr(t, err, "Failed to unmarshal response")
 
 	if len(submissions) != 3 {

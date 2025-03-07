@@ -1,15 +1,16 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
-	"github.com/go-chi/chi/v5"
+	"fmt"
 	"go-leetcode/backend/internal/database"
 	"go-leetcode/backend/internal/testutils"
 	"go-leetcode/backend/models"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func setupProblemTest(t *testing.T) (*ProblemHandler, *database.TestDB) {
@@ -28,10 +29,10 @@ func TestGetProblemByID(t *testing.T) {
 	err := testDB.DB.QueryRow("SELECT id FROM problems LIMIT 1").Scan(&testProblemID)
 	testutils.CheckErr(t, err, "Failed to find test problem")
 
+	url := fmt.Sprintf("/problems?id=%d", testProblemID)
+
 	// Create test request
-	reqBody := map[string]int{"id": testProblemID}
-	jsonData, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest("POST", "/problems/id", bytes.NewBuffer(jsonData))
+	req := httptest.NewRequest("POST", url, nil)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
@@ -62,9 +63,7 @@ func TestGetProblemByFrontendID(t *testing.T) {
 	testFrontendID := 1966
 
 	// Create test request
-	reqBody := map[string]int{"frontend_id": testFrontendID}
-	jsonData, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest("GET", "/problems/frontend_id", bytes.NewBuffer(jsonData))
+	req := httptest.NewRequest("GET", "/problems?frontend_id=1966", nil)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
@@ -95,9 +94,8 @@ func TestGetProblemBySlug(t *testing.T) {
 	testSlug := "two-sum"
 
 	// Create test request
-	reqBody := map[string]string{"slug": testSlug}
-	jsonData, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest("POST", "/problems/slug", bytes.NewBuffer(jsonData))
+
+	req := httptest.NewRequest("POST", "/problems?slug=two-sum", nil)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 

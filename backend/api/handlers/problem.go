@@ -13,15 +13,9 @@ type ProblemHandler struct {
 }
 
 func (h *ProblemHandler) GetProblemByID(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ID int `json:"id"`
-	}
+	reqID, _ := strconv.Atoi(r.URL.Query().Get("id"))
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-	}
-
-	res, err := h.store.GetProblemByID(req.ID)
+	res, err := h.store.GetProblemByID(reqID)
 
 	if err != nil {
 		http.Error(w, "Failed to get problem", http.StatusInternalServerError)
@@ -34,15 +28,9 @@ func (h *ProblemHandler) GetProblemByID(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *ProblemHandler) GetProblemByFrontendID(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		FrontendID int `json:"frontend_id"`
-	}
+	reqFrontendID, _ := strconv.Atoi(r.URL.Query().Get("frontend_id"))
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-	}
-
-	res, err := h.store.GetProblemByFrontendID(req.FrontendID)
+	res, err := h.store.GetProblemByFrontendID(reqFrontendID)
 
 	if err != nil {
 		http.Error(w, "Failed to get problem", http.StatusInternalServerError)
@@ -55,15 +43,9 @@ func (h *ProblemHandler) GetProblemByFrontendID(w http.ResponseWriter, r *http.R
 }
 
 func (h *ProblemHandler) GetProblemBySlug(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Slug string `json:"slug"`
-	}
+	req_slug := r.URL.Query().Get("slug")
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-	}
-
-	res, err := h.store.GetProblemBySlug(req.Slug)
+	res, err := h.store.GetProblemBySlug(req_slug)
 
 	if err != nil {
 		http.Error(w, "Failed to get problem", http.StatusInternalServerError)

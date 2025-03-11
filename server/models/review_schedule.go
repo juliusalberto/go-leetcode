@@ -196,6 +196,55 @@ func (s *ReviewScheduleStore) GetUpcomingReviews(userID int) ([]ReviewSchedule, 
     return reviews, nil
 }
 
+func (s *ReviewScheduleStore) GetDueReviews(userID int) ([]ReviewSchedule, error) {
+    query := `
+        SELECT r.id, r.submission_id, r.next_review_at, r.created_at,
+               r.stability, r.difficulty, r.elapsed_days, r.scheduled_days,
+               r.reps, r.lapses, r.state, r.last_review
+        FROM review_schedules r
+        JOIN submissions s ON r.submission_id = s.id
+        WHERE s.user_id = $1 AND r.next_review_at <= NOW()
+        ORDER BY r.next_review_at
+    `
+
+    rows, err := s.db.Query(query, userID)
+    if err != nil {
+        return nil, fmt.Errorf("error fetching due reviews: %v", err)
+    }
+    defer rows.Close()
+
+    var reviews []ReviewSchedule
+    for rows.Next() {
+        var review ReviewSchedule
+        var lastReview sql.NullTime
+        
+        if err := rows.Scan(
+            &review.ID,
+            &review.SubmissionID,
+            &review.NextReviewAt,
+            &review.CreatedAt,
+            &review.Stability,
+            &review.Difficulty,
+            &review.ElapsedDays,
+            &review.ScheduledDays,
+            &review.Reps,
+            &review.Lapses,
+            &review.State,
+            &lastReview,
+        ); err != nil {
+            return nil, fmt.Errorf("error scanning review: %v", err)
+        }
+        
+        if lastReview.Valid {
+            review.LastReview = lastReview.Time
+        }
+        
+        reviews = append(reviews, review)
+    }
+
+    return reviews, nil
+}
+
 func (s *ReviewScheduleStore) GetReviewsByUserID(userID int) ([]ReviewSchedule, error) {
     query := `
         SELECT r.id, r.submission_id, r.next_review_at, r.created_at,

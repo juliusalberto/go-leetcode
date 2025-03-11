@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-func setupReviewTest(t *testing.T)(*ReviewHandler, *database.TestDB, int) {
+func setupReviewTest(t *testing.T) (*ReviewHandler, *database.TestDB, int) {
 	testDB := database.SetupTestDB(t)
 	reviewStore := models.NewReviewScheduleStore(testDB.DB)
 	submissionStore := models.NewSubmissionStore(testDB.DB)
@@ -24,7 +24,7 @@ func setupReviewTest(t *testing.T)(*ReviewHandler, *database.TestDB, int) {
 
 	// create user first
 	testUser := models.User{
-		Username: "testuser",
+		Username:         "testuser",
 		LeetcodeUsername: "test_leetcode",
 	}
 
@@ -32,12 +32,12 @@ func setupReviewTest(t *testing.T)(*ReviewHandler, *database.TestDB, int) {
 
 	for i := 0; i < 5; i++ {
 		testSub := models.Submission{
-			ID: strconv.Itoa(i + 1),
-			UserID: testUser.ID,
-			Title: fmt.Sprintf("%d Sum", i + 1),
-			TitleSlug: fmt.Sprintf("%d-sum", i + 1),
+			ID:          strconv.Itoa(i + 1),
+			UserID:      testUser.ID,
+			Title:       fmt.Sprintf("%d Sum", i+1),
+			TitleSlug:   fmt.Sprintf("%d-sum", i+1),
 			SubmittedAt: time.Now(),
-			CreatedAt: time.Now(),
+			CreatedAt:   time.Now(),
 		}
 
 		if err := submissionStore.CreateSubmission(testSub); err != nil {
@@ -75,7 +75,7 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 	req := httptest.NewRequest("GET", url, nil)
 	rr := httptest.NewRecorder()
 
-	handler.GetUpcomingReviews(rr, req)
+	handler.GetReviews(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", rr.Code)
@@ -149,7 +149,7 @@ func TestGetDueReviewHandler(t *testing.T) {
 	req := httptest.NewRequest("GET", url, nil)
 	rr := httptest.NewRecorder()
 
-	handler.GetUpcomingReviews(rr, req)
+	handler.GetReviews(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", rr.Code)
@@ -175,7 +175,7 @@ func TestGetDueReviewHandler(t *testing.T) {
 
 	// Should only contain the due review
 	if len(dueReviews) != 1 || dueReviews[0].SubmissionID != dueReview.SubmissionID {
-		t.Errorf("Expected 1 due review with ID %s, got %d reviews: %+v", 
+		t.Errorf("Expected 1 due review with ID %s, got %d reviews: %+v",
 			dueReview.SubmissionID, len(dueReviews), dueReviews)
 	}
 
@@ -184,7 +184,7 @@ func TestGetDueReviewHandler(t *testing.T) {
 	req = httptest.NewRequest("GET", url, nil)
 	rr = httptest.NewRecorder()
 
-	handler.GetUpcomingReviews(rr, req)
+	handler.GetReviews(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", rr.Code)
@@ -270,38 +270,38 @@ func TestUpdateReviewSchedule(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", rr.Code)
 	}
-	
+
 	// Decode standardized response
 	var resp response.Response
 	err = json.Unmarshal(rr.Body.Bytes(), &resp)
 	testutils.CheckErr(t, err, "Failed to unmarshal response")
-	
+
 	// Check for errors
 	if len(resp.Errors) > 0 {
 		t.Errorf("Response contains errors: %v", resp.Errors)
 	}
-	
+
 	// Extract update data from response
 	updateData, err := json.Marshal(resp.Data)
 	testutils.CheckErr(t, err, "Failed to marshal update data")
-	
+
 	var updateResponse map[string]interface{}
 	err = json.Unmarshal(updateData, &updateResponse)
 	testutils.CheckErr(t, err, "Failed to unmarshal update data")
-	
+
 	// Verify response contains expected fields
 	if _, ok := updateResponse["success"]; !ok || updateResponse["success"] != true {
 		t.Errorf("Expected success to be true, got %v", updateResponse["success"])
 	}
-	
+
 	if _, ok := updateResponse["next_review_at"]; !ok {
 		t.Errorf("Response missing next_review_at field")
 	}
-	
+
 	if _, ok := updateResponse["days_until_review"]; !ok {
 		t.Errorf("Response missing days_until_review field")
 	}
-	
+
 	// Check if the review was updated in the database
 	updatedReview, err := handler.store.GetReviewByID(testReview.ID)
 	testutils.CheckErr(t, err, "Failed to get review")
@@ -310,11 +310,11 @@ func TestUpdateReviewSchedule(t *testing.T) {
 	if updatedReview.Reps <= testReview.Reps {
 		t.Errorf("Expected reps to increase, got %d", updatedReview.Reps)
 	}
-	
+
 	if updatedReview.LastReview.Before(testReview.LastReview) {
 		t.Errorf("Expected last_review to be updated")
 	}
-	
+
 	// Check that next review date is in the future
 	if !updatedReview.NextReviewAt.After(time.Now()) {
 		t.Errorf("Expected next_review_at to be in the future")
@@ -335,67 +335,67 @@ func TestCreateNewReview(t *testing.T) {
 		SubmittedAt: time.Now().UTC(),
 		CreatedAt:   time.Now().UTC(),
 	}
-	
+
 	err := submissionStore.CreateSubmission(testSubmission)
 	testutils.CheckErr(t, err, "Failed to create test submission")
-	
+
 	newReviewData := map[string]interface{}{
 		"submission_id": testSubmission.ID,
 	}
-	
+
 	jsonData, err := json.Marshal(newReviewData)
 	testutils.CheckErr(t, err, "Failed to marshal json data")
-	
+
 	req := httptest.NewRequest("POST", "/reviews/create", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
-	
+
 	handler.CreateReview(rr, req)
-	
+
 	if rr.Code != http.StatusCreated {
 		t.Errorf("Expected status 201 Created, got %d", rr.Code)
 	}
-	
+
 	// Decode standardized response
 	var resp response.Response
 	err = json.Unmarshal(rr.Body.Bytes(), &resp)
 	testutils.CheckErr(t, err, "Failed to unmarshal response")
-	
+
 	// Check for errors
 	if len(resp.Errors) > 0 {
 		t.Errorf("Response contains errors: %v", resp.Errors)
 	}
-	
+
 	// Extract data from response
 	responseData, err := json.Marshal(resp.Data)
 	testutils.CheckErr(t, err, "Failed to marshal response data")
-	
+
 	var responseObj struct {
 		ID int `json:"id"`
 	}
 	err = json.Unmarshal(responseData, &responseObj)
 	testutils.CheckErr(t, err, "Failed to unmarshal response data")
-	
+
 	review, err := handler.store.GetReviewByID(responseObj.ID)
 	testutils.CheckErr(t, err, "Failed to get created review")
-	
+
 	if review.SubmissionID != testSubmission.ID {
 		t.Errorf("Expected submission ID %s, got %s", testSubmission.ID, review.SubmissionID)
 	}
-	
+
 	// Verify FSRS fields are set
 	if review.Stability <= 0 {
 		t.Errorf("Expected stability > 0, got %f", review.Stability)
 	}
-	
+
 	if review.Reps != 1 {
 		t.Errorf("Expected reps to be 1, got %d", review.Reps)
 	}
-	
+
 	if review.State < 0 || review.State > 3 {
 		t.Errorf("Expected valid state (0-3), got %d", review.State)
 	}
-	
+
 	// Verify next review date is in the future
 	if !review.NextReviewAt.After(time.Now().UTC()) {
 		t.Errorf("Next review date should be in the future")

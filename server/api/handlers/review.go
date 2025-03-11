@@ -15,7 +15,6 @@ type ReviewHandler struct {
 	store *models.ReviewScheduleStore
 }
 
-
 func (h *ReviewHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SubmissionID string `json:"submission_id"`
@@ -29,7 +28,7 @@ func (h *ReviewHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
 	// Initialize FSRS parameters
 	f := fsrs.NewFSRS(fsrs.DefaultParam())
 	card := fsrs.NewCard()
-	
+
 	// Create initial schedule with "Good" rating
 	now := time.Now().UTC()
 	result := f.Next(card, now, fsrs.Good)
@@ -61,8 +60,7 @@ func NewReviewHandler(store *models.ReviewScheduleStore) *ReviewHandler {
 	return &ReviewHandler{store: store}
 }
 
-
-func (h *ReviewHandler) GetUpcomingReviews(w http.ResponseWriter, r *http.Request) {
+func (h *ReviewHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	// we want to write the review that is in the db
 	reqUserID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
 
@@ -76,9 +74,34 @@ func (h *ReviewHandler) GetUpcomingReviews(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	reviews, err := h.store.GetUpcomingReviews(reqUserID)
+	// Get reviews based on status parameter
+	status := r.URL.Query().Get("status")
+	var reviews []models.ReviewSchedule
+
+	switch status {
+	case "due":
+		// Get only due reviews
+		reviews, err = h.store.GetDueReviews(reqUserID)
+	case "upcoming":
+		// Get only upcoming reviews
+		reviews, err = h.store.GetUpcomingReviews(reqUserID)
+	default:
+		// Get all reviews (both due and upcoming)
+		dueReviews, dueErr := h.store.GetDueReviews(reqUserID)
+		upcomingReviews, upcomingErr := h.store.GetUpcomingReviews(reqUserID)
+
+		if dueErr != nil {
+			err = dueErr
+		} else if upcomingErr != nil {
+			err = upcomingErr
+		} else {
+			// Combine both lists
+			reviews = append(dueReviews, upcomingReviews...)
+		}
+	}
+
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to get upcoming reviews")
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to get reviews")
 		return
 	}
 
@@ -149,8 +172,8 @@ func (h *ReviewHandler) UpdateReviewSchedule(w http.ResponseWriter, r *http.Requ
 	}
 
 	response.JSON(w, http.StatusOK, map[string]interface{}{
-		"success": true,
-		"next_review_at": updatedReview.NextReviewAt,
+		"success":           true,
+		"next_review_at":    updatedReview.NextReviewAt,
 		"days_until_review": int(updatedReview.ScheduledDays),
 	})
 }

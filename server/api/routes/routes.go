@@ -1,17 +1,17 @@
 package routes
 
 import (
+	"database/sql"
 	"go-leetcode/backend/api/handlers"
 	"go-leetcode/backend/api/middleware"
 	"go-leetcode/backend/models"
-	"database/sql"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
-func SetupRoutes(db *sql.DB, logger *zap.Logger,) chi.Router {
+func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	router := chi.NewRouter()
 
 	router.Use(chimiddleware.RequestID)
@@ -34,7 +34,7 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger,) chi.Router {
 	})
 
 	router.Route("/api/reviews", func(router chi.Router) {
-		router.Get("/upcoming", reviewHandler.GetUpcomingReviews)
+		router.Get("/upcoming", reviewHandler.GetReviews)
 		router.Put("/update", reviewHandler.UpdateReviewSchedule)
 		router.Post("/create", reviewHandler.CreateReview)
 	})

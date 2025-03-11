@@ -70,7 +70,7 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 	err := handler.store.CreateReviewSchedule(&testReview)
 	testutils.CheckErr(t, err, "Failed to create test review")
 
-	url := fmt.Sprintf("/reviews/upcoming?user_id=%d", userID)
+	url := fmt.Sprintf("/reviews/upcoming?user_id=%d&status=upcoming", userID)
 
 	req := httptest.NewRequest("GET", url, nil)
 	rr := httptest.NewRecorder()
@@ -101,6 +101,132 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 
 	if len(reviews) != 1 || reviews[0].SubmissionID != testReview.SubmissionID {
 		t.Errorf("unexpected response: %+v", reviews)
+	}
+}
+
+func TestGetDueReviewHandler(t *testing.T) {
+	handler, testDB, userID := setupReviewTest(t)
+	defer testDB.Cleanup(t)
+
+	// Create a due test review with FSRS fields (nextReviewAt is in the past)
+	dueReview := models.ReviewSchedule{
+		SubmissionID:  "2",
+		NextReviewAt:  time.Now().Add(-24 * time.Hour), // Due 1 day ago
+		CreatedAt:     time.Now().Add(-48 * time.Hour), // Created 2 days ago
+		Stability:     3.0,
+		Difficulty:    5.0,
+		ElapsedDays:   0,
+		ScheduledDays: 1,
+		Reps:          1,
+		Lapses:        0,
+		State:         2, // Review state
+		LastReview:    time.Now().Add(-48 * time.Hour),
+	}
+
+	err := handler.store.CreateReviewSchedule(&dueReview)
+	testutils.CheckErr(t, err, "Failed to create due test review")
+
+	// Create a future test review with FSRS fields
+	upcomingReview := models.ReviewSchedule{
+		SubmissionID:  "3",
+		NextReviewAt:  time.Now().Add(24 * time.Hour), // Due in 1 day
+		CreatedAt:     time.Now(),
+		Stability:     3.0,
+		Difficulty:    5.0,
+		ElapsedDays:   0,
+		ScheduledDays: 1,
+		Reps:          1,
+		Lapses:        0,
+		State:         2, // Review state
+		LastReview:    time.Now(),
+	}
+
+	err = handler.store.CreateReviewSchedule(&upcomingReview)
+	testutils.CheckErr(t, err, "Failed to create upcoming test review")
+
+	// Test 1: Get only due reviews
+	url := fmt.Sprintf("/reviews/upcoming?user_id=%d&status=due", userID)
+	req := httptest.NewRequest("GET", url, nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetUpcomingReviews(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", rr.Code)
+	}
+
+	// Decode standardized response
+	var resp response.Response
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
+	testutils.CheckErr(t, err, "Failed to parse due reviews response")
+
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Extract review data from response
+	reviewData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal due reviews data")
+
+	var dueReviews []models.ReviewSchedule
+	err = json.Unmarshal(reviewData, &dueReviews)
+	testutils.CheckErr(t, err, "Failed to unmarshal due reviews data")
+
+	// Should only contain the due review
+	if len(dueReviews) != 1 || dueReviews[0].SubmissionID != dueReview.SubmissionID {
+		t.Errorf("Expected 1 due review with ID %s, got %d reviews: %+v", 
+			dueReview.SubmissionID, len(dueReviews), dueReviews)
+	}
+
+	// Test 2: Get all reviews (both due and upcoming)
+	url = fmt.Sprintf("/reviews/upcoming?user_id=%d", userID)
+	req = httptest.NewRequest("GET", url, nil)
+	rr = httptest.NewRecorder()
+
+	handler.GetUpcomingReviews(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", rr.Code)
+	}
+
+	// Decode standardized response
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
+	testutils.CheckErr(t, err, "Failed to parse all reviews response")
+
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Extract review data from response
+	reviewData, err = json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal all reviews data")
+
+	var allReviews []models.ReviewSchedule
+	err = json.Unmarshal(reviewData, &allReviews)
+	testutils.CheckErr(t, err, "Failed to unmarshal all reviews data")
+
+	// Should contain both reviews
+	if len(allReviews) != 2 {
+		t.Errorf("Expected 2 reviews, got %d", len(allReviews))
+	}
+
+	// Verify that both due and upcoming reviews are included
+	var foundDue, foundUpcoming bool
+	for _, review := range allReviews {
+		if review.SubmissionID == dueReview.SubmissionID {
+			foundDue = true
+		} else if review.SubmissionID == upcomingReview.SubmissionID {
+			foundUpcoming = true
+		}
+	}
+
+	if !foundDue {
+		t.Errorf("Due review not found in the combined result")
+	}
+	if !foundUpcoming {
+		t.Errorf("Upcoming review not found in the combined result")
 	}
 }
 

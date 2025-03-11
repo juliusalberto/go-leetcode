@@ -147,7 +147,21 @@ func (s *ReviewScheduleStore) GetReviewsBySubmissionID(submissionID string) ([]R
     return reviews, nil
 }
 
-func (s *ReviewScheduleStore) GetUpcomingReviews(userID int) ([]ReviewSchedule, error) {
+func (s *ReviewScheduleStore) GetUpcomingReviews(userID int, limit, offset int) ([]ReviewSchedule, int, error) {
+    // First, count total records for pagination
+    countQuery := `
+        SELECT COUNT(*)
+        FROM review_schedules r
+        JOIN submissions s ON r.submission_id = s.id
+        WHERE s.user_id = $1 AND r.next_review_at >= NOW()
+    `
+    var total int
+    err := s.db.QueryRow(countQuery, userID).Scan(&total)
+    if err != nil {
+        return nil, 0, fmt.Errorf("error counting upcoming reviews: %v", err)
+    }
+
+    // Then get paginated results
     query := `
         SELECT r.id, r.submission_id, r.next_review_at, r.created_at,
                r.stability, r.difficulty, r.elapsed_days, r.scheduled_days,
@@ -156,11 +170,12 @@ func (s *ReviewScheduleStore) GetUpcomingReviews(userID int) ([]ReviewSchedule, 
         JOIN submissions s ON r.submission_id = s.id
         WHERE s.user_id = $1 AND r.next_review_at >= NOW()
         ORDER BY r.next_review_at
+        LIMIT $2 OFFSET $3
     `
 
-    rows, err := s.db.Query(query, userID)
+    rows, err := s.db.Query(query, userID, limit, offset)
     if err != nil {
-        return nil, fmt.Errorf("error fetching upcoming reviews: %v", err)
+        return nil, 0, fmt.Errorf("error fetching upcoming reviews: %v", err)
     }
     defer rows.Close()
 
@@ -183,7 +198,7 @@ func (s *ReviewScheduleStore) GetUpcomingReviews(userID int) ([]ReviewSchedule, 
             &review.State,
             &lastReview,
         ); err != nil {
-            return nil, fmt.Errorf("error scanning review: %v", err)
+            return nil, 0, fmt.Errorf("error scanning review: %v", err)
         }
         
         if lastReview.Valid {
@@ -193,10 +208,24 @@ func (s *ReviewScheduleStore) GetUpcomingReviews(userID int) ([]ReviewSchedule, 
         reviews = append(reviews, review)
     }
 
-    return reviews, nil
+    return reviews, total, nil
 }
 
-func (s *ReviewScheduleStore) GetDueReviews(userID int) ([]ReviewSchedule, error) {
+func (s *ReviewScheduleStore) GetDueReviews(userID int, limit, offset int) ([]ReviewSchedule, int, error) {
+    // First, count total records for pagination
+    countQuery := `
+        SELECT COUNT(*)
+        FROM review_schedules r
+        JOIN submissions s ON r.submission_id = s.id
+        WHERE s.user_id = $1 AND r.next_review_at <= NOW()
+    `
+    var total int
+    err := s.db.QueryRow(countQuery, userID).Scan(&total)
+    if err != nil {
+        return nil, 0, fmt.Errorf("error counting due reviews: %v", err)
+    }
+
+    // Then get paginated results
     query := `
         SELECT r.id, r.submission_id, r.next_review_at, r.created_at,
                r.stability, r.difficulty, r.elapsed_days, r.scheduled_days,
@@ -205,11 +234,12 @@ func (s *ReviewScheduleStore) GetDueReviews(userID int) ([]ReviewSchedule, error
         JOIN submissions s ON r.submission_id = s.id
         WHERE s.user_id = $1 AND r.next_review_at <= NOW()
         ORDER BY r.next_review_at
+        LIMIT $2 OFFSET $3
     `
 
-    rows, err := s.db.Query(query, userID)
+    rows, err := s.db.Query(query, userID, limit, offset)
     if err != nil {
-        return nil, fmt.Errorf("error fetching due reviews: %v", err)
+        return nil, 0, fmt.Errorf("error fetching due reviews: %v", err)
     }
     defer rows.Close()
 
@@ -232,7 +262,7 @@ func (s *ReviewScheduleStore) GetDueReviews(userID int) ([]ReviewSchedule, error
             &review.State,
             &lastReview,
         ); err != nil {
-            return nil, fmt.Errorf("error scanning review: %v", err)
+            return nil, 0, fmt.Errorf("error scanning review: %v", err)
         }
         
         if lastReview.Valid {
@@ -242,7 +272,7 @@ func (s *ReviewScheduleStore) GetDueReviews(userID int) ([]ReviewSchedule, error
         reviews = append(reviews, review)
     }
 
-    return reviews, nil
+    return reviews, total, nil
 }
 
 func (s *ReviewScheduleStore) GetReviewsByUserID(userID int) ([]ReviewSchedule, error) {

@@ -4,6 +4,8 @@ import (
     "database/sql"
     "fmt"
     "time"
+    
+    "github.com/open-spaced-repetition/go-fsrs/v3"
 )
 
 type ReviewSchedule struct {
@@ -65,14 +67,15 @@ func (s *ReviewScheduleStore) CreateReviewSchedule(review *ReviewSchedule) error
 func (s *ReviewScheduleStore) UpdateReviewSchedule(review *ReviewSchedule) error {
     query := `
         UPDATE review_schedules
-        SET next_review_at = $1, stability = $2, difficulty = $3,
-            elapsed_days = $4, scheduled_days = $5, reps = $6, 
-            lapses = $7, state = $8, last_review = $9
-        WHERE id = $10
+        SET submission_id = $1, next_review_at = $2, stability = $3, difficulty = $4,
+            elapsed_days = $5, scheduled_days = $6, reps = $7, 
+            lapses = $8, state = $9, last_review = $10
+        WHERE id = $11
     `
 
     result, err := s.db.Exec(
         query,
+        review.SubmissionID,
         review.NextReviewAt,
         review.Stability,
         review.Difficulty,
@@ -363,4 +366,122 @@ func (s *ReviewScheduleStore) GetReviewByID(reviewID int) (ReviewSchedule, error
     }
 
     return review, nil
+}
+
+func (s *ReviewScheduleStore) GetReviewByTitleSlug(userID int, titleSlug string) (ReviewSchedule, error) {
+    query := `
+        SELECT r.id, r.submission_id, r.next_review_at, r.created_at, 
+               r.stability, r.difficulty, r.elapsed_days, r.scheduled_days,
+               r.reps, r.lapses, r.state, r.last_review
+        FROM review_schedules r
+        JOIN submissions s ON r.submission_id = s.id
+        WHERE s.user_id = $1 AND s.title_slug = $2
+        ORDER BY s.submitted_at DESC
+        LIMIT 1
+    `
+
+    var review ReviewSchedule
+    var lastReview sql.NullTime
+    
+    err := s.db.QueryRow(query, userID, titleSlug).Scan(
+        &review.ID,
+        &review.SubmissionID,
+        &review.NextReviewAt,
+        &review.CreatedAt,
+        &review.Stability,
+        &review.Difficulty,
+        &review.ElapsedDays,
+        &review.ScheduledDays,
+        &review.Reps,
+        &review.Lapses,
+        &review.State,
+        &lastReview,
+    )
+    
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return ReviewSchedule{}, fmt.Errorf("no review found for title slug %s and user ID %d", titleSlug, userID)
+        }
+        return ReviewSchedule{}, fmt.Errorf("error fetching review by title slug: %v", err)
+    }
+    
+    if lastReview.Valid {
+        review.LastReview = lastReview.Time
+    }
+
+    return review, nil
+}
+
+// ConvertReviewScheduleToFSRS converts a ReviewSchedule to an FSRS Card
+func ConvertReviewScheduleToFSRS(review *ReviewSchedule) fsrs.Card {
+    return fsrs.Card{
+        Due:           review.NextReviewAt,
+        Stability:     review.Stability,
+        Difficulty:    review.Difficulty,
+        ElapsedDays:   review.ElapsedDays,
+        ScheduledDays: review.ScheduledDays,
+        Reps:          review.Reps,
+        Lapses:        review.Lapses,
+        State:         fsrs.State(review.State),
+        LastReview:    review.LastReview,
+    }
+}
+
+// ConvertFSRSToReviewSchedule updates a ReviewSchedule with values from an FSRS Card
+func ConvertFSRSToReviewSchedule(card fsrs.Card, review *ReviewSchedule) {
+    review.NextReviewAt = card.Due
+    review.Stability = card.Stability
+    review.Difficulty = card.Difficulty
+    review.ElapsedDays = card.ElapsedDays
+    review.ScheduledDays = card.ScheduledDays
+    review.Reps = card.Reps
+    review.Lapses = card.Lapses
+    review.State = int(card.State)
+    review.LastReview = card.LastReview
+}
+
+func (s *ReviewScheduleStore) UpdateOrCreateReviewForSubmission(submission *Submission) (ReviewSchedule, error) {
+    // Check if we already have a review for this problem
+    existingReview, err := s.GetReviewByTitleSlug(submission.UserID, submission.TitleSlug)
+    
+    if err == nil {
+        fsrsCard := ConvertReviewScheduleToFSRS(&existingReview)
+        
+        // Process with "Good" rating as a baseline for solving the problem again
+        fsrsScheduler := fsrs.NewFSRS(fsrs.DefaultParam())
+        now := time.Now().UTC()
+        result := fsrsScheduler.Next(fsrsCard, now, fsrs.Good)
+        
+        // Update the review with new FSRS values
+        existingReview.SubmissionID = submission.ID
+        ConvertFSRSToReviewSchedule(result.Card, &existingReview)
+        existingReview.LastReview = now
+        
+        if err := s.UpdateReviewSchedule(&existingReview); err != nil {
+            return ReviewSchedule{}, fmt.Errorf("error updating existing review: %v", err)
+        }
+        return existingReview, nil
+    }
+    
+    // No review exists, create a new one
+    // Initialize FSRS parameters
+    fsrsScheduler := fsrs.NewFSRS(fsrs.DefaultParam())
+    card := fsrs.NewCard()
+    
+    // Create initial schedule with "Good" rating
+    now := time.Now().UTC()
+    result := fsrsScheduler.Next(card, now, fsrs.Good)
+    
+    newReview := ReviewSchedule{
+        SubmissionID: submission.ID,
+        CreatedAt:    now,
+    }
+    
+    // Set FSRS fields
+    ConvertFSRSToReviewSchedule(result.Card, &newReview)
+    
+    if err := s.CreateReviewSchedule(&newReview); err != nil {
+        return ReviewSchedule{}, fmt.Errorf("error creating new review: %v", err)
+    }
+    return newReview, nil
 }

@@ -48,6 +48,107 @@ func setupReviewTest(t *testing.T) (*ReviewHandler, *database.TestDB, int) {
 	return handler, testDB, testUser.ID
 }
 
+func TestUpdateOrCreateReview(t *testing.T) {
+	handler, testDB, userID := setupReviewTest(t)
+	defer testDB.Cleanup(t)
+
+	// Create a submission to test with
+	testSubmission := models.Submission{
+		ID:         "test_submission_999",
+		UserID:     userID,
+		Title:      "Test Problem for Update",
+		TitleSlug:  "test-problem-update",
+		SubmittedAt: time.Now().UTC(),
+		CreatedAt:   time.Now().UTC(),
+	}
+	
+	// Save submission to database
+	submissionStore := models.NewSubmissionStore(testDB.DB)
+	err := submissionStore.CreateSubmission(testSubmission)
+	testutils.CheckErr(t, err, "Failed to create test submission for handler test")
+
+	// Create the request with the submission
+	jsonData, err := json.Marshal(testSubmission)
+	testutils.CheckErr(t, err, "Failed to marshal test submission")
+
+	req := httptest.NewRequest("POST", "/reviews/update-or-create", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	// Call the handler
+	handler.UpdateOrCreateReview(rr, req)
+
+	// Check response
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", rr.Code)
+	}
+
+	var resp response.Response
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
+	testutils.CheckErr(t, err, "Failed to unmarshal response")
+
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Get response data
+	respData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal response data")
+
+	var respObj map[string]interface{}
+	err = json.Unmarshal(respData, &respObj)
+	testutils.CheckErr(t, err, "Failed to unmarshal response data")
+
+	// Verify response contains expected fields
+	if success, ok := respObj["success"].(bool); !ok || !success {
+		t.Errorf("Expected success: true, got %v", respObj["success"])
+	}
+
+	if _, ok := respObj["next_review_at"]; !ok {
+		t.Errorf("Response missing next_review_at field")
+	}
+
+	if _, ok := respObj["days_until_review"]; !ok {
+		t.Errorf("Response missing days_until_review field")
+	}
+
+	// Test the handler again with the same title_slug to check the update case
+	testSubmission2 := models.Submission{
+		ID:         "test_submission_1000", // Different ID
+		UserID:     userID,
+		Title:      "Test Problem for Update",
+		TitleSlug:  "test-problem-update", // Same title_slug
+		SubmittedAt: time.Now().UTC().Add(24 * time.Hour), // Later submission
+		CreatedAt:   time.Now().UTC(),
+	}
+	
+	// Save second submission to database
+	err = submissionStore.CreateSubmission(testSubmission2)
+	testutils.CheckErr(t, err, "Failed to create second test submission for handler test")
+
+	jsonData2, err := json.Marshal(testSubmission2)
+	testutils.CheckErr(t, err, "Failed to marshal second test submission")
+
+	req2 := httptest.NewRequest("POST", "/reviews/update-or-create", bytes.NewBuffer(jsonData2))
+	req2.Header.Set("Content-Type", "application/json")
+	rr2 := httptest.NewRecorder()
+
+	handler.UpdateOrCreateReview(rr2, req2)
+
+	if rr2.Code != http.StatusOK {
+		t.Errorf("Expected status 200 for second request, got %d", rr2.Code)
+	}
+
+	// Verify in the database that we have a review for the second submission ID
+	reviews, err := handler.store.GetReviewsBySubmissionID(testSubmission2.ID)
+	testutils.CheckErr(t, err, "Failed to get reviews for second submission")
+
+	if len(reviews) != 1 {
+		t.Errorf("Expected 1 review for the second submission, got %d", len(reviews))
+	}
+}
+
 func TestGetUpcomingReviewHandler(t *testing.T) {
 	handler, testDB, userID := setupReviewTest(t)
 	defer testDB.Cleanup(t)

@@ -124,6 +124,86 @@ func TestUpdateReviewSchedule(t *testing.T) {
    }
 }
 
+func TestUpdateOrCreateReviewForSubmission(t *testing.T) {
+   store, testDB, _ := setupTestReview(t)
+   defer testDB.Cleanup(t)
+   
+   // Create a new test user and submission for this test
+   userStore := NewUserStore(testDB.DB)
+   testUser := User{
+       Username: "updateuser",
+       LeetcodeUsername: "leetcode_updateuser",
+       CreatedAt: time.Now(),
+   }
+   err := userStore.CreateUser(&testUser)
+   testutils.CheckErr(t, err, "Failed to create test user for update test")
+   
+   // Create a submission
+   testSubmission := Submission{
+       ID:          "update_submission_id",
+       UserID:      testUser.ID,
+       Title:       "Two Sum",
+       TitleSlug:   "two-sum",
+       SubmittedAt: time.Now().UTC(),
+       CreatedAt:   time.Now().UTC(),
+   }
+   
+   // Create submission in the database
+   subStore := NewSubmissionStore(testDB.DB)
+   err = subStore.CreateSubmission(testSubmission)
+   testutils.CheckErr(t, err, "Failed to create test submission for update test")
+   
+   // Test CREATE case - first time solving
+   reviewResult, err := store.UpdateOrCreateReviewForSubmission(&testSubmission)
+   testutils.CheckErr(t, err, "Failed to create review for new submission")
+   
+   // Verify the review was created properly
+   if reviewResult.SubmissionID != testSubmission.ID {
+       t.Errorf("Expected review for submission ID %s, got %s", 
+           testSubmission.ID, reviewResult.SubmissionID)
+   }
+   
+   if reviewResult.Reps != 1 {
+       t.Errorf("Expected new review to have 1 rep, got %d", reviewResult.Reps)
+   }
+   
+   // Now test UPDATE case - solving the same problem again with new submission
+   secondSubmission := Submission{
+       ID:          "update_submission_id_2",
+       UserID:      testUser.ID,
+       Title:       "Two Sum",
+       TitleSlug:   "two-sum", // Same problem
+       SubmittedAt: time.Now().UTC().Add(24 * time.Hour), // One day later
+       CreatedAt:   time.Now().UTC(),
+   }
+   
+   // Create second submission in the database
+   err = subStore.CreateSubmission(secondSubmission)
+   testutils.CheckErr(t, err, "Failed to create second test submission")
+   
+   updatedReview, err := store.UpdateOrCreateReviewForSubmission(&secondSubmission)
+   testutils.CheckErr(t, err, "Failed to update review for existing problem")
+   
+   // Verify the review was updated
+   if updatedReview.SubmissionID != secondSubmission.ID {
+       t.Errorf("Expected updated review to have new submission ID %s, got %s",
+           secondSubmission.ID, updatedReview.SubmissionID)
+   }
+   
+   if updatedReview.Reps <= reviewResult.Reps {
+       t.Errorf("Expected reps to increase after update, got %d -> %d",
+           reviewResult.Reps, updatedReview.Reps)
+   }
+   
+   // Ensure the review actually uses the new submission ID
+   reviews, err := store.GetReviewsBySubmissionID(secondSubmission.ID)
+   testutils.CheckErr(t, err, "Failed to get reviews for second submission")
+   
+   if len(reviews) != 1 {
+       t.Errorf("Expected to find 1 review for second submission, got %d", len(reviews))
+   }
+}
+
 func TestFSRSWorkflow(t *testing.T) {
    store, testDB, review := setupTestReview(t)
    defer testDB.Cleanup(t)

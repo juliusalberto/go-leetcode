@@ -34,18 +34,13 @@ func (h *ReviewHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
 	result := f.Next(card, now, fsrs.Good)
 
 	reviewToAdd := models.ReviewSchedule{
-		SubmissionID:  req.SubmissionID,
-		NextReviewAt:  result.Card.Due,
-		CreatedAt:     now,
-		Stability:     result.Card.Stability,
-		Difficulty:    result.Card.Difficulty,
-		ElapsedDays:   result.Card.ElapsedDays,
-		ScheduledDays: result.Card.ScheduledDays,
-		Reps:          result.Card.Reps,
-		Lapses:        result.Card.Lapses,
-		State:         int(result.Card.State),
-		LastReview:    result.Card.LastReview,
+		SubmissionID: req.SubmissionID,
+		CreatedAt:    now,
 	}
+	
+	// Set FSRS fields
+	models.ConvertFSRSToReviewSchedule(result.Card, &reviewToAdd)
+	reviewToAdd.LastReview = result.Card.LastReview
 
 	err := h.store.CreateReviewSchedule(&reviewToAdd)
 	if err != nil {
@@ -168,17 +163,7 @@ func (h *ReviewHandler) UpdateReviewSchedule(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Convert to FSRS Card
-	fsrsCard := fsrs.Card{
-		Due:           currReview.NextReviewAt,
-		Stability:     currReview.Stability,
-		Difficulty:    currReview.Difficulty,
-		ElapsedDays:   currReview.ElapsedDays,
-		ScheduledDays: currReview.ScheduledDays,
-		Reps:          currReview.Reps,
-		Lapses:        currReview.Lapses,
-		State:         fsrs.State(currReview.State),
-		LastReview:    currReview.LastReview,
-	}
+	fsrsCard := models.ConvertReviewScheduleToFSRS(&currReview)
 
 	// Process the rating
 	fsrsScheduler := fsrs.NewFSRS(fsrs.DefaultParam())
@@ -187,14 +172,7 @@ func (h *ReviewHandler) UpdateReviewSchedule(w http.ResponseWriter, r *http.Requ
 
 	// Update the review
 	updatedReview := currReview
-	updatedReview.NextReviewAt = result.Card.Due
-	updatedReview.Stability = result.Card.Stability
-	updatedReview.Difficulty = result.Card.Difficulty
-	updatedReview.ElapsedDays = result.Card.ElapsedDays
-	updatedReview.ScheduledDays = result.Card.ScheduledDays
-	updatedReview.Reps = result.Card.Reps
-	updatedReview.Lapses = result.Card.Lapses
-	updatedReview.State = int(result.Card.State)
+	models.ConvertFSRSToReviewSchedule(result.Card, &updatedReview)
 	updatedReview.LastReview = now
 
 	if err := h.store.UpdateReviewSchedule(&updatedReview); err != nil {
@@ -206,5 +184,30 @@ func (h *ReviewHandler) UpdateReviewSchedule(w http.ResponseWriter, r *http.Requ
 		"success":           true,
 		"next_review_at":    updatedReview.NextReviewAt,
 		"days_until_review": int(updatedReview.ScheduledDays),
+	})
+}
+
+func (h *ReviewHandler) UpdateOrCreateReview(w http.ResponseWriter, r *http.Request) {
+	// we expect that the serverless function will send us a submission data
+	// this is mainly used to read data from the leetcode graphql api
+	// thus, 
+
+	var req models.Submission
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
+		return
+	}
+
+	review, err := h.store.UpdateOrCreateReviewForSubmission(&req)
+	
+	if err != nil{
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to update or create review")
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"success":           true,
+		"next_review_at":    review.NextReviewAt,
+		"days_until_review": int(review.ScheduledDays),
 	})
 }

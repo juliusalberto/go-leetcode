@@ -70,7 +70,7 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 	err := handler.store.CreateReviewSchedule(&testReview)
 	testutils.CheckErr(t, err, "Failed to create test review")
 
-	url := fmt.Sprintf("/reviews/upcoming?user_id=%d&status=upcoming", userID)
+	url := fmt.Sprintf("/api/reviews?user_id=%d&status=upcoming&page=1&per_page=10", userID)
 
 	req := httptest.NewRequest("GET", url, nil)
 	rr := httptest.NewRecorder()
@@ -89,6 +89,21 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 	// Check for errors
 	if len(resp.Errors) > 0 {
 		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Check pagination data
+	if resp.Meta.Pagination == nil {
+		t.Errorf("Expected pagination data in response")
+	} else {
+		if resp.Meta.Pagination.Total != 1 {
+			t.Errorf("Expected total count of 1, got %d", resp.Meta.Pagination.Total)
+		}
+		if resp.Meta.Pagination.Page != 1 {
+			t.Errorf("Expected page 1, got %d", resp.Meta.Pagination.Page)
+		}
+		if resp.Meta.Pagination.PerPage != 10 {
+			t.Errorf("Expected per_page 10, got %d", resp.Meta.Pagination.PerPage)
+		}
 	}
 
 	// Extract review data from response
@@ -145,7 +160,7 @@ func TestGetDueReviewHandler(t *testing.T) {
 	testutils.CheckErr(t, err, "Failed to create upcoming test review")
 
 	// Test 1: Get only due reviews
-	url := fmt.Sprintf("/reviews/upcoming?user_id=%d&status=due", userID)
+	url := fmt.Sprintf("/api/reviews?user_id=%d&status=due&page=1&per_page=10", userID)
 	req := httptest.NewRequest("GET", url, nil)
 	rr := httptest.NewRecorder()
 
@@ -165,6 +180,15 @@ func TestGetDueReviewHandler(t *testing.T) {
 		t.Errorf("Response contains errors: %v", resp.Errors)
 	}
 
+	// Check pagination data
+	if resp.Meta.Pagination == nil {
+		t.Errorf("Expected pagination data in response")
+	} else {
+		if resp.Meta.Pagination.Total != 1 {
+			t.Errorf("Expected total count of 1, got %d", resp.Meta.Pagination.Total)
+		}
+	}
+
 	// Extract review data from response
 	reviewData, err := json.Marshal(resp.Data)
 	testutils.CheckErr(t, err, "Failed to marshal due reviews data")
@@ -180,7 +204,7 @@ func TestGetDueReviewHandler(t *testing.T) {
 	}
 
 	// Test 2: Get all reviews (both due and upcoming)
-	url = fmt.Sprintf("/reviews/upcoming?user_id=%d", userID)
+	url = fmt.Sprintf("/api/reviews?user_id=%d&page=1&per_page=10", userID)
 	req = httptest.NewRequest("GET", url, nil)
 	rr = httptest.NewRecorder()
 
@@ -197,6 +221,15 @@ func TestGetDueReviewHandler(t *testing.T) {
 	// Check for errors
 	if len(resp.Errors) > 0 {
 		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Check pagination data
+	if resp.Meta.Pagination == nil {
+		t.Errorf("Expected pagination data in response for all reviews")
+	} else {
+		if resp.Meta.Pagination.Total != 2 {
+			t.Errorf("Expected total count of 2, got %d", resp.Meta.Pagination.Total)
+		}
 	}
 
 	// Extract review data from response

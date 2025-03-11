@@ -61,9 +61,8 @@ func NewReviewHandler(store *models.ReviewScheduleStore) *ReviewHandler {
 }
 
 func (h *ReviewHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
-	// we want to write the review that is in the db
+	// Parse user_id from query params
 	reqUserID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
-
 	if err != nil {
 		response.ValidationError(w, "user_id", "Invalid user_id format")
 		return
@@ -74,29 +73,61 @@ func (h *ReviewHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse pagination parameters
+	page := 1
+	perPage := 10
+	
+	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+		if pageNum, err := strconv.Atoi(pageStr); err == nil && pageNum > 0 {
+			page = pageNum
+		}
+	}
+	
+	if perPageStr := r.URL.Query().Get("per_page"); perPageStr != "" {
+		if perPageNum, err := strconv.Atoi(perPageStr); err == nil && perPageNum > 0 && perPageNum <= 100 {
+			perPage = perPageNum
+		}
+	}
+	
+	// Calculate offset
+	offset := (page - 1) * perPage
+
 	// Get reviews based on status parameter
 	status := r.URL.Query().Get("status")
 	var reviews []models.ReviewSchedule
+	var total int
 
 	switch status {
 	case "due":
-		// Get only due reviews
-		reviews, err = h.store.GetDueReviews(reqUserID)
+		// Get only due reviews with pagination
+		reviews, total, err = h.store.GetDueReviews(reqUserID, perPage, offset)
 	case "upcoming":
-		// Get only upcoming reviews
-		reviews, err = h.store.GetUpcomingReviews(reqUserID)
+		// Get only upcoming reviews with pagination
+		reviews, total, err = h.store.GetUpcomingReviews(reqUserID, perPage, offset)
 	default:
 		// Get all reviews (both due and upcoming)
-		dueReviews, dueErr := h.store.GetDueReviews(reqUserID)
-		upcomingReviews, upcomingErr := h.store.GetUpcomingReviews(reqUserID)
-
+		// For combined results, we need to handle pagination specially
+		dueReviews, dueTotal, dueErr := h.store.GetDueReviews(reqUserID, perPage, offset)
+		
 		if dueErr != nil {
 			err = dueErr
-		} else if upcomingErr != nil {
-			err = upcomingErr
 		} else {
-			// Combine both lists
-			reviews = append(dueReviews, upcomingReviews...)
+			reviews = dueReviews
+			total = dueTotal
+			
+			// If we haven't filled the page with due reviews, get some upcoming reviews
+			if len(dueReviews) < perPage {
+				remainingItems := perPage - len(dueReviews)
+				upcomingReviews, upcomingTotal, upcomingErr := h.store.GetUpcomingReviews(reqUserID, remainingItems, 0)
+				
+				if upcomingErr != nil {
+					err = upcomingErr
+				} else {
+					// Combine both lists and totals
+					reviews = append(reviews, upcomingReviews...)
+					total += upcomingTotal
+				}
+			}
 		}
 	}
 
@@ -105,7 +136,7 @@ func (h *ReviewHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, reviews)
+	response.JSONWithPagination(w, http.StatusOK, reviews, total, page, perPage)
 }
 
 func (h *ReviewHandler) UpdateReviewSchedule(w http.ResponseWriter, r *http.Request) {

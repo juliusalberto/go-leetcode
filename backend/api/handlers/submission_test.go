@@ -7,6 +7,7 @@ import (
 	"go-leetcode/backend/internal/database"
 	"go-leetcode/backend/internal/testutils"
 	"go-leetcode/backend/models"
+	"go-leetcode/backend/pkg/response"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -54,17 +55,29 @@ func TestCreateSubmission(t *testing.T) {
 		t.Errorf("Expected status 201, got %d", rr.Code)
 	}
 
-	// check if the submission exist
-	var response models.Submission
-
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	// Decode standardized response
+	var resp response.Response
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
 	testutils.CheckErr(t, err, "Failed to unmarshal response")
 
-	if response.ID == "" {
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Extract data from response
+	submissionData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal submission data")
+
+	var submission models.Submission
+	err = json.Unmarshal(submissionData, &submission)
+	testutils.CheckErr(t, err, "Failed to unmarshal submission data")
+
+	if submission.ID == "" {
 		t.Error("Expected submission ID in response")
 	}
 
-	exists, err := handler.store.CheckSubmissionExists(response.ID)
+	exists, err := handler.store.CheckSubmissionExists(submission.ID)
 	testutils.CheckErr(t, err, "Failed to check if submission exists")
 
 	if !exists {
@@ -102,9 +115,23 @@ func TestGetSubmission(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", rr.Code)
 	}
 
-	var submissions []models.Submission
-	err := json.Unmarshal(rr.Body.Bytes(), &submissions)
+	// Decode standardized response
+	var resp response.Response
+	err := json.Unmarshal(rr.Body.Bytes(), &resp)
 	testutils.CheckErr(t, err, "Failed to unmarshal response")
+
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Extract data from response
+	submissionsData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal submissions data")
+
+	var submissions []models.Submission
+	err = json.Unmarshal(submissionsData, &submissions)
+	testutils.CheckErr(t, err, "Failed to unmarshal submissions data")
 
 	if len(submissions) != 3 {
 		t.Errorf("Expected 3 submissions, got %d", len(submissions))

@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"go-leetcode/backend/models"
+	"go-leetcode/backend/pkg/response"
 	"net/http"
 	"time"
 )
@@ -25,23 +26,23 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
 		return 
 	}
 
 	if req.Username == "" || req.LeetcodeUsername == "" {
-		http.Error(w, "Missing username or leetcode username", http.StatusBadRequest)
+		response.ValidationError(w, "username_or_leetcode_username", "Missing username or leetcode username")
 		return
 	}
 
 	// check if username already exists
     exists, err := h.store.CheckUserExistsByUsername(req.Username)
     if err != nil {
-        http.Error(w, "Internal server error", http.StatusInternalServerError)
+        response.Error(w, http.StatusInternalServerError, "server_error", "Internal server error")
         return
     }
     if exists {
-        http.Error(w, "Username already exists", http.StatusConflict)
+        response.Error(w, http.StatusConflict, "conflict", "Username already exists")
         return
     }
 
@@ -52,11 +53,9 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.store.CreateUser(&newUser); err != nil {
-		http.Error(w, "Failed to create user", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to create user")
 		return 
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(newUser)
+	response.JSON(w, http.StatusCreated, newUser)
 }

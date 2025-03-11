@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"encoding/json"
 	"go-leetcode/backend/models"
+	"go-leetcode/backend/pkg/response"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,13 +18,11 @@ func (h *ProblemHandler) GetProblemByID(w http.ResponseWriter, r *http.Request) 
 	res, err := h.store.GetProblemByID(reqID)
 
 	if err != nil {
-		http.Error(w, "Failed to get problem", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to get problem")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	response.JSON(w, http.StatusOK, res)
 }
 
 func (h *ProblemHandler) GetProblemByFrontendID(w http.ResponseWriter, r *http.Request) {
@@ -33,13 +31,11 @@ func (h *ProblemHandler) GetProblemByFrontendID(w http.ResponseWriter, r *http.R
 	res, err := h.store.GetProblemByFrontendID(reqFrontendID)
 
 	if err != nil {
-		http.Error(w, "Failed to get problem", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to get problem")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	response.JSON(w, http.StatusOK, res)
 }
 
 func (h *ProblemHandler) GetProblemBySlug(w http.ResponseWriter, r *http.Request) {
@@ -48,13 +44,11 @@ func (h *ProblemHandler) GetProblemBySlug(w http.ResponseWriter, r *http.Request
 	res, err := h.store.GetProblemBySlug(req_slug)
 
 	if err != nil {
-		http.Error(w, "Failed to get problem", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to get problem")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	response.JSON(w, http.StatusOK, res)
 }
 
 func (h *ProblemHandler) GetProblemList(w http.ResponseWriter, r *http.Request) {
@@ -97,13 +91,15 @@ func (h *ProblemHandler) GetProblemList(w http.ResponseWriter, r *http.Request) 
 		OrderDir: orderDir,
 	}
 
-	res, err := h.store.ListProblems(options)
+	// Calculate page number from offset and limit
+	page := (offset / limit) + 1
+
+	result, err := h.store.ListProblems(options)
 
 	if err != nil {
-		http.Error(w, "Failed to get problems list", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to get problems list")
+		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	response.JSONWithPagination(w, http.StatusOK, result.Problems, result.Total, page, limit)
 }

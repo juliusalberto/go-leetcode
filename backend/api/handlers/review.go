@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"go-leetcode/backend/models"
+	"go-leetcode/backend/pkg/response"
 	"net/http"
 	"strconv"
 	"time"
@@ -21,7 +22,7 @@ func (h *ReviewHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid_request", "Invalid Request Body")
 		return
 	}
 
@@ -49,13 +50,11 @@ func (h *ReviewHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
 
 	err := h.store.CreateReviewSchedule(&reviewToAdd)
 	if err != nil {
-		http.Error(w, "Failed to create new review", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to create new review")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]int{"id": reviewToAdd.ID})
+	response.JSON(w, http.StatusCreated, map[string]int{"id": reviewToAdd.ID})
 }
 
 func NewReviewHandler(store *models.ReviewScheduleStore) *ReviewHandler {
@@ -68,25 +67,22 @@ func (h *ReviewHandler) GetUpcomingReviews(w http.ResponseWriter, r *http.Reques
 	reqUserID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
 
 	if err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		response.ValidationError(w, "user_id", "Invalid user_id format")
 		return
 	}
 
 	if reqUserID < 0 {
-		http.Error(w, "UserID should not be below 0", http.StatusBadRequest)
+		response.ValidationError(w, "user_id", "UserID should not be below 0")
 		return
 	}
 
 	reviews, err := h.store.GetUpcomingReviews(reqUserID)
 	if err != nil {
-		http.Error(w, "Failed to get upcoming reviews", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to get upcoming reviews")
 		return
 	}
 
-	// write it down as json
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(reviews)
+	response.JSON(w, http.StatusOK, reviews)
 }
 
 func (h *ReviewHandler) UpdateReviewSchedule(w http.ResponseWriter, r *http.Request) {
@@ -96,24 +92,24 @@ func (h *ReviewHandler) UpdateReviewSchedule(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
 		return
 	}
 
 	if req.ID < 0 {
-		http.Error(w, "Review ID should not be below 0", http.StatusBadRequest)
+		response.ValidationError(w, "review_id", "Review ID should not be below 0")
 		return
 	}
 
 	if req.Rating < 1 || req.Rating > 4 {
-		http.Error(w, "Rating must be between 1 and 4", http.StatusBadRequest)
+		response.ValidationError(w, "rating", "Rating must be between 1 and 4")
 		return
 	}
 
 	// Get the previous review
 	currReview, err := h.store.GetReviewByID(req.ID)
 	if err != nil {
-		http.Error(w, "Failed to find review", http.StatusNotFound)
+		response.Error(w, http.StatusNotFound, "not_found", "Failed to find review")
 		return
 	}
 
@@ -148,13 +144,11 @@ func (h *ReviewHandler) UpdateReviewSchedule(w http.ResponseWriter, r *http.Requ
 	updatedReview.LastReview = now
 
 	if err := h.store.UpdateReviewSchedule(&updatedReview); err != nil {
-		http.Error(w, "Failed to update review schedule", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to update review schedule")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"next_review_at": updatedReview.NextReviewAt,
 		"days_until_review": int(updatedReview.ScheduledDays),

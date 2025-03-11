@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-leetcode/backend/models"
+	"go-leetcode/backend/pkg/response"
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,25 +22,23 @@ func (s *SubmissionHandler) GetSubmissions(w http.ResponseWriter, r *http.Reques
 	userIDStr := r.URL.Query().Get("user_id")
 	
 	if userIDStr == "" {
-		http.Error(w, "Missing user_id parameter", http.StatusBadRequest)
+		response.ValidationError(w, "user_id", "Missing user_id parameter")
 		return
 	}
 	
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
-		http.Error(w, "Invalid user_id parameter", http.StatusBadRequest)
+		response.ValidationError(w, "user_id", "Invalid user_id parameter")
 		return
 	}
 
 	submissions, err := s.store.GetSubmissionsByUserID(userID)
 	if err != nil {
-		http.Error(w, "Failed to get submissions", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to get submissions")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(submissions)
+	response.JSON(w, http.StatusOK, submissions)
 }
 
 func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +50,8 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&subReq); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
+		return
 	}
 
 	id := uuid.New().String()
@@ -59,7 +59,8 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 	submitted_time, err := time.Parse(time.RFC3339, subReq.SubmittedAt)
 
 	if err != nil {
-		http.Error(w, "Invalid time format", http.StatusBadRequest)
+		response.ValidationError(w, "submitted_at", "Invalid time format")
+		return
 	}
 
 	submissionToAdd := models.Submission{
@@ -73,14 +74,11 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 
 	err = s.store.CreateSubmission(submissionToAdd)
 	if err != nil {
-		http.Error(w, "Failed to create new submission", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to create new submission")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(submissionToAdd)
-	return
+	response.JSON(w, http.StatusCreated, submissionToAdd)
 }
 
 func NewSubmissionHandler(store *models.SubmissionStore) *SubmissionHandler {

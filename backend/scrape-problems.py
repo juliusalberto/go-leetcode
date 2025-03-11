@@ -100,14 +100,20 @@ def main():
             
             # Get detailed problem data
             try:
-                detail_url = f"{PROBLEM_DETAIL_URL}{title_slug}"
-                detail_response = requests.get(detail_url)
-                if detail_response.status_code == 200:
-                    problem_detail = detail_response.json()
-                    insert_problem(conn, problem_detail)
-                    print(f"Successfully saved: {title_slug}")
-                else:
-                    print(f"Failed to fetch details for {title_slug}: HTTP {detail_response.status_code}")
+                while True:
+                    detail_url = f"{PROBLEM_DETAIL_URL}{title_slug}"
+                    detail_response = requests.get(detail_url)
+                    if detail_response.status_code == 200:
+                        problem_detail = detail_response.json()
+                        
+                        if not problem_detail.get('questionId'):
+                            continue
+
+                        insert_problem(conn, problem_detail)
+                        print(f"Successfully saved: {title_slug}")
+                        break
+                    else:
+                        print(f"Failed to fetch details for {title_slug}: HTTP {detail_response.status_code}")
             except Exception as e:
                 print(f"Error processing {title_slug}: {str(e)}")
             

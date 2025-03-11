@@ -7,6 +7,7 @@ import (
 	"go-leetcode/backend/internal/database"
 	"go-leetcode/backend/internal/testutils"
 	"go-leetcode/backend/models"
+	"go-leetcode/backend/pkg/response"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -80,14 +81,26 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", rr.Code)
 	}
 
-	var response []models.ReviewSchedule
-
-	// we want to unmarshal the json bytes
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	// Decode standardized response
+	var resp response.Response
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
 	testutils.CheckErr(t, err, "Failed to parse response")
 
-	if len(response) != 1 || response[0].SubmissionID != testReview.SubmissionID {
-		t.Errorf("unexpected response: %+v", response)
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Extract review data from response
+	reviewData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal review data")
+
+	var reviews []models.ReviewSchedule
+	err = json.Unmarshal(reviewData, &reviews)
+	testutils.CheckErr(t, err, "Failed to unmarshal review data")
+
+	if len(reviews) != 1 || reviews[0].SubmissionID != testReview.SubmissionID {
+		t.Errorf("unexpected response: %+v", reviews)
 	}
 }
 
@@ -132,21 +145,34 @@ func TestUpdateReviewSchedule(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", rr.Code)
 	}
 	
-	// Parse the response
-	var response map[string]interface{}
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	// Decode standardized response
+	var resp response.Response
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
 	testutils.CheckErr(t, err, "Failed to unmarshal response")
 	
-	// Verify response contains expected fields
-	if _, ok := response["success"]; !ok || response["success"] != true {
-		t.Errorf("Expected success to be true, got %v", response["success"])
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
 	}
 	
-	if _, ok := response["next_review_at"]; !ok {
+	// Extract update data from response
+	updateData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal update data")
+	
+	var updateResponse map[string]interface{}
+	err = json.Unmarshal(updateData, &updateResponse)
+	testutils.CheckErr(t, err, "Failed to unmarshal update data")
+	
+	// Verify response contains expected fields
+	if _, ok := updateResponse["success"]; !ok || updateResponse["success"] != true {
+		t.Errorf("Expected success to be true, got %v", updateResponse["success"])
+	}
+	
+	if _, ok := updateResponse["next_review_at"]; !ok {
 		t.Errorf("Response missing next_review_at field")
 	}
 	
-	if _, ok := response["days_until_review"]; !ok {
+	if _, ok := updateResponse["days_until_review"]; !ok {
 		t.Errorf("Response missing days_until_review field")
 	}
 	
@@ -204,13 +230,27 @@ func TestCreateNewReview(t *testing.T) {
 		t.Errorf("Expected status 201 Created, got %d", rr.Code)
 	}
 	
-	var response struct {
-		ID int `json:"id"`
-	}
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	// Decode standardized response
+	var resp response.Response
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
 	testutils.CheckErr(t, err, "Failed to unmarshal response")
 	
-	review, err := handler.store.GetReviewByID(response.ID)
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+	
+	// Extract data from response
+	responseData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal response data")
+	
+	var responseObj struct {
+		ID int `json:"id"`
+	}
+	err = json.Unmarshal(responseData, &responseObj)
+	testutils.CheckErr(t, err, "Failed to unmarshal response data")
+	
+	review, err := handler.store.GetReviewByID(responseObj.ID)
 	testutils.CheckErr(t, err, "Failed to get created review")
 	
 	if review.SubmissionID != testSubmission.ID {

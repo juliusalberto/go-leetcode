@@ -6,6 +6,7 @@ import (
 	"go-leetcode/backend/internal/database"
 	"go-leetcode/backend/internal/testutils"
 	"go-leetcode/backend/models"
+	"go-leetcode/backend/pkg/response"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -26,6 +27,7 @@ func TestRegisterHandler(t* testing.T) {
 		name 		string 
 		body		RegisterRequest
 		wantStatus	int
+		checkErrors bool
 	}{
 		{
 			name: "valid registration",
@@ -34,6 +36,7 @@ func TestRegisterHandler(t* testing.T) {
 				LeetcodeUsername: "leetcode_testuser",
 			},
 			wantStatus: http.StatusCreated,
+			checkErrors: false,
 		},
 		{
 			name: "missing username",
@@ -41,6 +44,7 @@ func TestRegisterHandler(t* testing.T) {
 				LeetcodeUsername: "leetcode_testuser",
 			},
 			wantStatus: http.StatusBadRequest,
+			checkErrors: true,
 		},
 		{
 			name: "missing leetcode username",
@@ -48,6 +52,7 @@ func TestRegisterHandler(t* testing.T) {
 				Username: "testuser",
 			},
 			wantStatus: http.StatusBadRequest,
+			checkErrors: true,
 		},
 	}
 
@@ -67,12 +72,32 @@ func TestRegisterHandler(t* testing.T) {
 					status, tt.wantStatus)
 			}
 
+			// Decode standardized response
+			var resp response.Response
+			err = json.Unmarshal(rr.Body.Bytes(), &resp)
+			testutils.CheckErr(t, err, "Failed to decode response")
+
+			// For success cases, check if data exists
 			if tt.wantStatus == http.StatusCreated {
+				if resp.Data == nil {
+					t.Error("Response data should not be nil for successful creation")
+				}
+				if len(resp.Errors) > 0 {
+					t.Errorf("Response should not contain errors, got %v", resp.Errors)
+				}
+
 				exists, err := handler.store.CheckUserExistsByUsername(tt.body.Username)
 				testutils.CheckErr(t, err, "Failed to check user existence")
 
 				if !exists {
 					t.Error("User not created in database")
+				}
+			}
+
+			// For error cases, check for errors array
+			if tt.checkErrors {
+				if len(resp.Errors) == 0 {
+					t.Error("Expected errors in response, but got none")
 				}
 			}
 		})

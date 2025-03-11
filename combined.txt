@@ -1,0 +1,1239 @@
+// ./backend/internal/database/db.go
+package database
+
+import (
+	"database/sql"
+	"fmt"
+	_ "github.com/lib/pq"
+)
+
+type Config struct {
+	Host string
+	Port string
+	User string 
+	Password string
+	DBName string
+}
+
+func NewConnection(config *Config) (*sql.DB, error) {
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", 
+							config.Host, config.Port, config.User, config.Password, config.DBName)
+							
+	return sql.Open("postgres", connStr)
+}
+
+// ./backend/internal/database/db_test.go
+package database
+
+import (
+	"testing"
+)
+
+func TestDBConnection(t *testing.T) {
+	testDB := SetupTestDB(t)
+	defer testDB.Cleanup(t)
+}
+
+
+// ./backend/internal/database/db_test_helper.go
+package database
+
+import (
+	"database/sql"
+	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
+	"testing"
+
+	"github.com/joho/godotenv"
+)
+
+type TestDB struct {
+	DB *sql.DB
+}
+
+func findProjectRoot(start string) (string, error) {
+    current := start
+    for {
+        goModPath := filepath.Join(current, "go.mod")
+        if info, err := os.Stat(goModPath); err == nil && !info.IsDir() {
+            return current, nil
+        }
+
+        parent := filepath.Dir(current)
+        if parent == current {
+            // We are at the filesystem root and never found go.mod
+            return "", errors.New("could not locate go.mod; are you sure you're in a Go project?")
+        }
+        current = parent
+    }
+}
+
+func SetupTestDB(t *testing.T) *TestDB {
+	_, thisFile, _, _ := runtime.Caller(0)
+	dirOfThisFile := filepath.Dir(thisFile)
+
+	root, err := findProjectRoot(dirOfThisFile)
+	if err != nil {
+		t.Fatalf("Error finding project root: %v", err)
+	}
+
+	envFilePath := filepath.Join(root, ".env.test")
+
+	if err := godotenv.Load(envFilePath); err != nil {
+		t.Fatalf("Error loading .env.test file: %v", err)
+	}
+
+	config := &Config{
+		Host:     os.Getenv("DB_HOST"),
+		Port:     os.Getenv("DB_PORT"),
+		User:     os.Getenv("DB_USER"),
+		Password: os.Getenv("DB_PASSWORD"),
+		DBName:   os.Getenv("DB_NAME"),
+	}
+
+	testDB, err := NewConnection(config)
+	if err != nil {
+		t.Fatalf("Could not connect to test database: %v", err)
+	}
+
+
+	return &TestDB{DB: testDB}
+}
+
+func (tdb *TestDB) Cleanup(t *testing.T) {
+	_, err := tdb.DB.Exec("TRUNCATE TABLE submissions, users, review_schedules CASCADE")
+	if err != nil {
+        t.Errorf("Could not drop test database: %v", err)
+    }
+	tdb.DB.Close()
+}
+
+// ./backend/internal/leetcode/models.go
+package leetcode
+
+type Submission struct {
+	ID string `json:"id"`
+	Title string `json:"title"`
+	TitleSlug string `json:"titleSlug"`
+	Timestamp int64 `json:"timestamp"`
+}
+
+type submissionResponse struct {
+	Data struct {
+		RecentAcSubmissionList []Submission `json:"recentAcSubmissionList"`
+	} `json:"data"`
+}
+
+// ./backend/internal/leetcode/client.go
+package leetcode 
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+)
+
+type Client struct {
+	endpoint string
+}
+
+type GraphQLRequest struct {
+	Query string `json:"query"`
+	Variables map[string]interface{} `json:"variables"`
+}
+
+func (c* Client) GetRecentSubmission(username string, limit int) ([]Submission, error) {
+	query := `
+		query recentAcSubmissions($username: String!, $limit: Int!) {
+			recentAcSubmissionList(username: $username, limit: $limit) {
+				id
+				title
+				titleSlug
+				timestamp
+			}
+		}
+	`
+
+	variables := map[string]interface{}{
+		"username": username,
+		"limit": limit,
+	}
+
+	reqBody := GraphQLRequest{
+		Query: query,
+		Variables: variables,
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if (err != nil) {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", c.endpoint, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	var result submissionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	return result.Data.RecentAcSubmissionList, nil
+}
+
+
+
+// ./backend/internal/leetcode/client_test.go
+package leetcode
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func TestGetRecentSubmission(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{
+            "data": {
+                "recentAcSubmissionList": [
+                    {
+                        "id": "123",
+                        "title": "Two Sum",
+                        "titleSlug": "two-sum",
+                        "timestamp": 1624512345
+                    }
+                ]
+            }
+		}`))
+	}))
+
+	defer server.Close()
+
+	client := &Client{endpoint: server.URL}
+
+	submissions, err := client.GetRecentSubmission("testuser", 1)
+
+	if (err != nil) {
+		t.Errorf("expected no error, got %v", err)
+	}
+
+	if len(submissions) != 1 {
+		t.Errorf("expected 1 submission, got %d", len(submissions))
+	}
+
+	expected := Submission{
+		ID: "123",
+		Title: "Two Sum",
+		TitleSlug: "two-sum",
+		Timestamp: 1624512345,
+	}
+
+	if submissions[0] != expected {
+		t.Errorf("expected %+v, got %+v", expected, submissions[0])
+	}
+}
+
+// ./backend/internal/testutils/helper.go
+package testutils
+
+import "testing"
+
+func CheckErr(t *testing.T, err error, msg string) {
+    if err != nil {
+        t.Fatalf("%s: %v", msg, err)
+    }
+}
+
+// ./backend/models/user.go
+package models 
+
+import (
+	"database/sql"
+	"fmt"
+	"time"
+)
+
+type User struct {
+    ID        int
+    Username  string
+	LeetcodeUsername string
+    CreatedAt time.Time
+}
+
+type UserStore struct {
+    db *sql.DB
+}
+
+func NewUserStore(db *sql.DB) *UserStore {
+    return &UserStore{db: db}
+}
+
+func (s *UserStore) CreateUser(user *User) error {
+    query := `
+        INSERT INTO users
+        (username, leetcode_username, created_at)
+        VALUES ($1, $2, $3)
+        RETURNING id
+    `
+
+    // Use QueryRow with RETURNING to get the generated ID
+    err := s.db.QueryRow(query, user.Username, user.LeetcodeUsername, user.CreatedAt).Scan(&user.ID)
+    if err != nil {
+        return fmt.Errorf("error creating user: %v", err)
+    }
+
+    return nil
+}
+
+func (s *UserStore) GetUserByID(id int)(User, error) {
+	var user User
+
+	query := `
+		SELECT id, username, leetcode_username, created_at
+		FROM users WHERE ID = $1
+	`
+
+	err := s.db.QueryRow(query, id).Scan(
+		&user.ID, &user.Username, &user.LeetcodeUsername, &user.CreatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return User{}, fmt.Errorf("user with ID %d not found", err)
+		}
+
+		return User{}, fmt.Errorf("error fetching user: %v", err)
+	}
+
+	return user, nil
+}
+
+func (s *UserStore) GetUserByUsername(username string) (User, error) {
+	var user User
+
+	query := `
+		SELECT id, username, leetcode_username, created_at
+		FROM users WHERE username = $1
+	`
+
+	err := s.db.QueryRow(query, username).Scan(
+		&user.ID, &user.Username, &user.LeetcodeUsername, &user.CreatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return User{}, fmt.Errorf("user with ID %d not found", err)
+		}
+
+		return User{}, fmt.Errorf("error fetching user: %v", err)
+	}
+
+	return user, nil
+}
+
+func (s *UserStore) CheckUserExistsByID(id int)(bool, error) {
+    query := `
+        SELECT EXISTS (
+            SELECT 1
+            FROM users
+            WHERE id = $1
+        )
+    `
+    
+    var exists bool
+    err := s.db.QueryRow(query, id).Scan(&exists)
+    if err != nil {
+        return false, fmt.Errorf("error checking user existence: %v", err)
+    }
+
+    return exists, nil
+}
+
+func (s *UserStore) CheckUserExistsByUsername(username string)(bool, error) {
+    query := `
+        SELECT EXISTS (
+            SELECT 1
+            FROM users
+            WHERE username = $1
+        )
+    `
+    
+    var exists bool
+    err := s.db.QueryRow(query, username).Scan(&exists)
+    if err != nil {
+        return false, fmt.Errorf("error checking user existence: %v", err)
+    }
+
+    return exists, nil
+}
+
+func (s *UserStore) CheckUserExistsByLeetcodeUsername(leetcodeUsername string) (bool, error) {
+    query := `
+        SELECT EXISTS (
+            SELECT 1
+            FROM users
+            WHERE leetcode_username = $1
+        )
+    `
+    
+    var exists bool
+    err := s.db.QueryRow(query, leetcodeUsername).Scan(&exists)
+    if err != nil {
+        return false, fmt.Errorf("error checking user existence by leetcode username: %v", err)
+    }
+
+    return exists, nil
+}
+
+func (s *UserStore) GetUserByLeetcodeUsername(leetcodeUsername string) (User, error) {
+    var user User
+
+    query := `
+        SELECT id, username, leetcode_username, created_at
+        FROM users WHERE leetcode_username = $1
+    `
+
+    err := s.db.QueryRow(query, leetcodeUsername).Scan(
+        &user.ID,
+        &user.Username,
+        &user.LeetcodeUsername,
+        &user.CreatedAt,
+    )
+
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return User{}, fmt.Errorf("user with leetcode username %s not found", leetcodeUsername)
+        }
+        return User{}, fmt.Errorf("error fetching user by leetcode username: %v", err)
+    }
+
+    return user, nil
+}
+
+
+
+
+// ./backend/models/user_test.go
+package models
+
+import (
+    "testing"
+    "time"
+    "go-leetcode/backend/internal/database"
+    "go-leetcode/backend/internal/testutils"
+)
+
+func setupTestUser(t *testing.T) (*UserStore, *database.TestDB, User) {
+    testDB := database.SetupTestDB(t)
+    store := NewUserStore(testDB.DB)
+    
+    testUser := User{
+        Username:         "testuser",
+        LeetcodeUsername: "leetcode_testuser",
+        CreatedAt:       time.Now(),
+    }
+    
+    err := store.CreateUser(&testUser)
+    testutils.CheckErr(t, err, "Failed to create test user in setup")
+
+    return store, testDB, testUser
+}
+
+func TestCreateUser(t *testing.T) {
+    store, testDB, _ := setupTestUser(t)
+    defer testDB.Cleanup(t)
+
+    newUser := User{
+        Username:         "newuser",
+        LeetcodeUsername: "leetcode_newuser",
+        CreatedAt:       time.Now(),
+    }
+
+    err := store.CreateUser(&newUser)
+    testutils.CheckErr(t, err, "Failed to create user")
+
+    exists, err := store.CheckUserExistsByUsername(newUser.Username)
+    testutils.CheckErr(t, err, "Error checking user existence")
+    if !exists {
+        t.Error("Created user not found")
+    }
+}
+
+func TestGetUserByID(t *testing.T) {
+    store, testDB, user := setupTestUser(t)
+    defer testDB.Cleanup(t)
+
+    fetchedUser, err := store.GetUserByID(user.ID)
+    testutils.CheckErr(t, err, "Failed to get user by ID")
+    if fetchedUser.Username != user.Username {
+        t.Errorf("Got wrong user: expected %s, got %s", user.Username, fetchedUser.Username)
+    }
+
+    // Test non-existent user
+    _, err = store.GetUserByID(9999)
+    if err == nil {
+        t.Error("Expected error when getting non-existent user, got nil")
+    }
+}
+
+func TestGetUserByUsername(t *testing.T) {
+    store, testDB, user := setupTestUser(t)
+    defer testDB.Cleanup(t)
+
+    fetchedUser, err := store.GetUserByUsername(user.Username)
+    testutils.CheckErr(t, err, "Failed to get user by username")
+    if fetchedUser.Username != user.Username {
+        t.Errorf("Got wrong user: expected %s, got %s", user.Username, fetchedUser.Username)
+    }
+
+    // Test non-existent user
+    _, err = store.GetUserByUsername("nonexistent")
+    if err == nil {
+        t.Error("Expected error when getting non-existent user, got nil")
+    }
+}
+
+func TestGetUserByLeetcodeUsername(t *testing.T) {
+    store, testDB, user := setupTestUser(t)
+    defer testDB.Cleanup(t)
+
+    fetchedUser, err := store.GetUserByLeetcodeUsername(user.LeetcodeUsername)
+    testutils.CheckErr(t, err, "Failed to get user by leetcode username")
+    if fetchedUser.LeetcodeUsername != user.LeetcodeUsername {
+        t.Errorf("Got wrong user: expected leetcode username %s, got %s", 
+            user.LeetcodeUsername, fetchedUser.LeetcodeUsername)
+    }
+
+    // Test non-existent user
+    _, err = store.GetUserByLeetcodeUsername("nonexistent")
+    if err == nil {
+        t.Error("Expected error when getting non-existent user, got nil")
+    }
+}
+
+func TestCheckUserExistsByID(t *testing.T) {
+    store, testDB, user := setupTestUser(t)
+    defer testDB.Cleanup(t)
+
+    exists, err := store.CheckUserExistsByID(user.ID)
+    testutils.CheckErr(t, err, "Error checking user existence")
+    if !exists {
+        t.Error("User should exist but doesn't")
+    }
+
+    exists, err = store.CheckUserExistsByID(9999)
+    testutils.CheckErr(t, err, "Error checking non-existent user")
+    if exists {
+        t.Error("User shouldn't exist but does")
+    }
+}
+
+func TestCheckUserExistsByUsername(t *testing.T) {
+    store, testDB, user := setupTestUser(t)
+    defer testDB.Cleanup(t)
+
+    exists, err := store.CheckUserExistsByUsername(user.Username)
+    testutils.CheckErr(t, err, "Error checking user existence")
+    if !exists {
+        t.Error("User should exist but doesn't")
+    }
+
+    exists, err = store.CheckUserExistsByUsername("nonexistent")
+    testutils.CheckErr(t, err, "Error checking non-existent user")
+    if exists {
+        t.Error("User shouldn't exist but does")
+    }
+}
+
+func TestCheckUserExistsByLeetcodeUsername(t *testing.T) {
+    store, testDB, user := setupTestUser(t)
+    defer testDB.Cleanup(t)
+
+    exists, err := store.CheckUserExistsByLeetcodeUsername(user.LeetcodeUsername)
+    testutils.CheckErr(t, err, "Error checking user existence by leetcode username")
+    if !exists {
+        t.Error("User should exist but doesn't")
+    }
+
+    exists, err = store.CheckUserExistsByLeetcodeUsername("nonexistent")
+    testutils.CheckErr(t, err, "Error checking non-existent user")
+    if exists {
+        t.Error("User shouldn't exist but does")
+    }
+}
+
+// ./backend/models/review_schedule_test.go
+package models
+
+import (
+   "testing"
+   "time"
+   "go-leetcode/backend/internal/database"
+   "go-leetcode/backend/internal/testutils"
+)
+
+func setupTestReview(t *testing.T) (*ReviewScheduleStore, *database.TestDB, ReviewSchedule) {
+    testDB := database.SetupTestDB(t)
+    
+    // Create user first
+    userStore := NewUserStore(testDB.DB)
+    testUser := User{
+        Username: "testuser",
+        LeetcodeUsername: "leetcode_testuser",
+        CreatedAt: time.Now(),
+    }
+    err := userStore.CreateUser(&testUser)
+    testutils.CheckErr(t, err, "Failed to create test user")
+
+    // Create submission
+    submissionStore := NewSubmissionStore(testDB.DB)
+    testSubmission := Submission{
+        ID: "test_submission_id",
+        UserID: testUser.ID,
+        Title: "Test Problem",
+        TitleSlug: "test-problem",
+        SubmittedAt: time.Now(),
+        CreatedAt: time.Now(),
+    }
+    err = submissionStore.CreateSubmission(testSubmission)
+    testutils.CheckErr(t, err, "Failed to create test submission")
+
+    // Finally create review
+    store := NewReviewScheduleStore(testDB.DB)
+    testReview := ReviewSchedule{
+        SubmissionID:  testSubmission.ID,
+        NextReviewAt:  time.Now().Add(24 * time.Hour),
+        IntervalDays:  1,
+        TimesReviewed: 0,
+        CreatedAt:     time.Now(),
+    }
+    err = store.CreateReviewSchedule(&testReview)
+    testutils.CheckErr(t, err, "Failed to create test review")
+
+    return store, testDB, testReview
+}
+
+func TestCreateAndGetReviewSchedule(t *testing.T) {
+   store, testDB, review := setupTestReview(t)
+   defer testDB.Cleanup(t)
+
+   // Test Get
+   reviews, err := store.GetReviewsBySubmissionID(review.SubmissionID)
+   testutils.CheckErr(t, err, "Failed to get reviews")
+   if len(reviews) != 1 {
+       t.Errorf("Expected 1 review, got %d", len(reviews))
+   }
+}
+
+func TestUpdateReviewSchedule(t *testing.T) {
+   store, testDB, review := setupTestReview(t)
+   defer testDB.Cleanup(t)
+
+   // Update review
+   review.IntervalDays = 3
+   review.TimesReviewed = 1
+   err := store.UpdateReviewSchedule(&review)
+   testutils.CheckErr(t, err, "Failed to update review")
+
+   // Verify update
+   reviews, err := store.GetReviewsBySubmissionID(review.SubmissionID)
+   testutils.CheckErr(t, err, "Failed to get updated review")
+   if reviews[0].IntervalDays != 3 || reviews[0].TimesReviewed != 1 {
+       t.Error("Review not updated correctly")
+   }
+}
+
+// ./backend/models/submission_test.go
+package models
+
+import (
+	"go-leetcode/backend/internal/database"
+	"testing"
+	"go-leetcode/backend/internal/testutils"
+	"time"
+)
+
+func setUpData(t *testing.T, ss *SubmissionStore) {
+	ss.db.Exec("INSERT INTO users (id, username, leetcode_username, created_at) VALUES ($1, $2, $3, $4)", 1, "test_user", "test_user", time.Now())
+
+	sub := Submission{
+		ID:          "123",
+		UserID:      1,
+		Title:       "Two Sum",
+		TitleSlug:   "two-sum",
+		SubmittedAt: time.Now(),
+		CreatedAt:   time.Now(),
+	}
+
+	err := ss.CreateSubmission(sub)
+	if err != nil {
+		t.Errorf("Failed to create submission: %v", err)
+	}
+
+} 
+
+func TestGetSubmissionByID(t *testing.T) {
+	testDB := database.SetupTestDB(t)
+	defer testDB.Cleanup(t)
+
+	submission_store := NewSubmissionStore(testDB.DB)
+	setUpData(t, submission_store)
+
+	received_sub, err := submission_store.GetSubmissionByID("123")
+
+	if err != nil {
+		t.Errorf("Failed to get submission: %v", err)
+	}
+
+	if received_sub.TitleSlug != "two-sum" {
+		t.Error("The submission received does not match the submission sent.")
+	}
+}
+
+func TestGetSubmissionByUserID(t *testing.T) {
+	testDB := database.SetupTestDB(t)
+	defer testDB.Cleanup(t)
+
+	ss := NewSubmissionStore(testDB.DB)
+	setUpData(t, ss)
+
+	sub := Submission{
+		ID:          "124",
+		UserID:      1,
+		Title:       "3Sum",
+		TitleSlug:   "3-sum",
+		SubmittedAt: time.Now(),
+		CreatedAt:   time.Now(),
+	}
+
+	err := ss.CreateSubmission(sub)
+	testutils.CheckErr(t, err, "Failed to create submission")
+
+	submissions, err := ss.GetSubmissionsByUserID(1)
+	testutils.CheckErr(t, err, "Failed to get submissions by user ID")
+
+	if len(submissions) != 2 {
+		t.Fatalf("Expected 2 submissions, got %d", len(submissions))
+	}
+
+	expectedTitleSlugs := map[string]bool {
+		"two-sum": true,
+		"3-sum": true,
+	}
+
+	for _, sub := range submissions {
+		if _, exists := expectedTitleSlugs[sub.TitleSlug]; !exists {
+			t.Errorf("Unexpected submission found: %v", sub.TitleSlug)
+		}
+	}
+}
+
+func TestCheckSubmissionExist(t *testing.T) {
+	testDB := database.SetupTestDB(t)
+	defer testDB.Cleanup(t)
+
+	ss := NewSubmissionStore(testDB.DB)
+	setUpData(t, ss)
+
+	status, err := ss.CheckSubmissionExists("123", 1)
+	testutils.CheckErr(t, err, "There is an error in getting the submission")
+
+	if status != true {
+		t.Errorf("Submission not found")
+	}
+}
+
+
+
+// ./backend/models/submission.go
+package models
+
+import (
+	"database/sql"
+	"fmt"
+	"time"
+
+	_ "github.com/lib/pq"
+)
+
+type Submission struct {
+	ID 			string
+	UserID		int
+	Title		string 
+	TitleSlug 	string
+	SubmittedAt time.Time
+	CreatedAt	time.Time
+}
+
+type SubmissionStore struct {
+	db *sql.DB
+}
+
+func NewSubmissionStore(db *sql.DB) *SubmissionStore {
+	return &SubmissionStore{db: db}
+}
+
+func (s *SubmissionStore) CreateSubmission(sub Submission) error {
+	query := `
+		INSERT INTO submissions
+		(id, user_id, title, title_slug, submitted_at, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+
+	_, err := s.db.Exec(query, sub.ID, sub.UserID, sub.Title, sub.TitleSlug, sub.SubmittedAt, sub.CreatedAt)
+
+    if err != nil {
+        return fmt.Errorf("error creating submission: %v", err)
+    }
+
+	return nil
+}
+
+func (s *SubmissionStore) GetSubmissionByID(id string)(Submission, error) {
+	var sub Submission
+
+	query := `
+		SELECT id, user_id, title, title_slug, submitted_at, created_at 
+		FROM submissions WHERE ID = $1
+	`
+
+	err := s.db.QueryRow(query, id).Scan(
+		&sub.ID,
+		&sub.UserID,
+		&sub.Title,
+		&sub.TitleSlug,
+		&sub.SubmittedAt,
+		&sub.CreatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return Submission{}, fmt.Errorf("submission with ID %s not found", id)
+		}
+
+		return Submission{}, fmt.Errorf("error fetching submission: %v", err)
+	}
+
+	return sub, nil 
+}
+
+func (s *SubmissionStore) GetSubmissionsByUserID(userID int)([]Submission, error) {
+	query := `
+		SELECT id, user_id, title, title_slug, submitted_at, created_at 
+		FROM submissions WHERE user_id = $1
+	`
+	rows, err := s.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var submissions []Submission
+
+	for rows.Next() {
+		var sub Submission
+		if err := rows.Scan(&sub.ID, &sub.UserID, &sub.Title, &sub.TitleSlug, &sub.SubmittedAt, &sub.CreatedAt); err != nil {
+			return submissions, err
+		}
+
+		submissions = append(submissions, sub)
+	}
+
+	if err = rows.Err(); err != nil {
+		return submissions, err
+	}
+
+
+	return submissions, nil
+}
+
+func (s *SubmissionStore) CheckSubmissionExists(submissionID string, userID int) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM submissions
+			WHERE id = $1 AND user_id = $2
+		)
+	`
+
+	var exists bool 
+	err := s.db.QueryRow(query, submissionID, userID).Scan(&exists)
+
+	if err != nil {
+		return false, fmt.Errorf("error checking submission existence : %v", err)
+	}
+
+	return exists, nil
+}
+
+// ./backend/models/review_schedule.go
+package models
+
+import (
+    "database/sql"
+    "fmt"
+    "time"
+)
+
+type ReviewSchedule struct {
+    ID             int
+    SubmissionID   string
+    NextReviewAt   time.Time
+    IntervalDays   int
+    TimesReviewed  int
+    CreatedAt      time.Time
+}
+
+type ReviewScheduleStore struct {
+    db *sql.DB
+}
+
+func NewReviewScheduleStore(db *sql.DB) *ReviewScheduleStore {
+    return &ReviewScheduleStore{db: db}
+}
+
+func (s *ReviewScheduleStore) CreateReviewSchedule(review *ReviewSchedule) error {
+    query := `
+        INSERT INTO review_schedules
+        (submission_id, next_review_at, interval_days, times_reviewed, created_at)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
+    `
+    
+    err := s.db.QueryRow(
+        query,
+        review.SubmissionID,
+        review.NextReviewAt,
+        review.IntervalDays,
+        review.TimesReviewed,
+        review.CreatedAt,
+    ).Scan(&review.ID)
+
+    if err != nil {
+        return fmt.Errorf("error creating review schedule: %v", err)
+    }
+
+    return nil
+}
+
+func (s *ReviewScheduleStore) GetReviewsBySubmissionID(submissionID string) ([]ReviewSchedule, error) {
+    query := `
+        SELECT id, submission_id, next_review_at, interval_days, times_reviewed, created_at
+        FROM review_schedules 
+        WHERE submission_id = $1
+        ORDER BY next_review_at
+    `
+
+    rows, err := s.db.Query(query, submissionID)
+    if err != nil {
+        return nil, fmt.Errorf("error fetching reviews: %v", err)
+    }
+    defer rows.Close()
+
+    var reviews []ReviewSchedule
+    for rows.Next() {
+        var review ReviewSchedule
+        if err := rows.Scan(
+            &review.ID,
+            &review.SubmissionID,
+            &review.NextReviewAt,
+            &review.IntervalDays,
+            &review.TimesReviewed,
+            &review.CreatedAt,
+        ); err != nil {
+            return nil, fmt.Errorf("error scanning review: %v", err)
+        }
+        reviews = append(reviews, review)
+    }
+
+    return reviews, nil
+}
+
+func (s *ReviewScheduleStore) GetUpcomingReviews(userID int) ([]ReviewSchedule, error) {
+    query := `
+        SELECT r.id, r.submission_id, r.next_review_at, r.interval_days, r.times_reviewed, r.created_at
+        FROM review_schedules r
+        JOIN submissions s ON r.submission_id = s.id
+        WHERE s.user_id = $1 AND r.next_review_at <= NOW()
+        ORDER BY r.next_review_at
+    `
+
+    rows, err := s.db.Query(query, userID)
+    if err != nil {
+        return nil, fmt.Errorf("error fetching upcoming reviews: %v", err)
+    }
+    defer rows.Close()
+
+    var reviews []ReviewSchedule
+    for rows.Next() {
+        var review ReviewSchedule
+        if err := rows.Scan(
+            &review.ID,
+            &review.SubmissionID,
+            &review.NextReviewAt,
+            &review.IntervalDays,
+            &review.TimesReviewed,
+            &review.CreatedAt,
+        ); err != nil {
+            return nil, fmt.Errorf("error scanning review: %v", err)
+        }
+        reviews = append(reviews, review)
+    }
+
+    return reviews, nil
+}
+
+func (s *ReviewScheduleStore) UpdateReviewSchedule(review *ReviewSchedule) error {
+    query := `
+        UPDATE review_schedules
+        SET next_review_at = $1, interval_days = $2, times_reviewed = $3
+        WHERE id = $4
+    `
+
+    result, err := s.db.Exec(
+        query,
+        review.NextReviewAt,
+        review.IntervalDays,
+        review.TimesReviewed,
+        review.ID,
+    )
+    if err != nil {
+        return fmt.Errorf("error updating review schedule: %v", err)
+    }
+
+    rows, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking update result: %v", err)
+    }
+    if rows == 0 {
+        return fmt.Errorf("review schedule with ID %d not found", review.ID)
+    }
+
+    return nil
+}
+
+// ./backend/api/middleware/auth.go
+
+
+// ./backend/api/middleware/logging.go
+package middleware
+
+import (
+	"net/http"
+	"time"
+	"go.uber.org/zap"
+)
+
+func LoggingMiddleware(logger *zap.Logger) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+
+			next.ServeHTTP(w, r)
+
+			logger.Info("http request",
+				zap.String("method", r.Method),
+				zap.String("path", r.URL.Path),
+				zap.String("remote_addr", r.RemoteAddr),
+				zap.Duration("latency", time.Since(start)),
+			)
+		})
+	}
+}
+
+// ./backend/api/routes/routes.go
+
+
+// ./backend/api/handlers/user.go
+package handlers
+
+import (
+	"encoding/json"
+	"go-leetcode/backend/models"
+	"net/http"
+	"time"
+)
+
+type UserHandler struct {
+	store *models.UserStore
+}
+
+type RegisterRequest struct{
+	Username string `json:"username"`
+	LeetcodeUsername string `json:"leetcode_username"`
+}
+
+func NewUserHandler(store *models.UserStore)(*UserHandler) {
+	return &UserHandler{store: store}
+}
+
+func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
+	// first we decode the json body
+	
+	var req RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return 
+	}
+
+	if req.Username == "" || req.LeetcodeUsername == "" {
+		http.Error(w, "Missing username or leetcode username", http.StatusBadRequest)
+		return
+	}
+
+	// check if username already exists
+    exists, err := h.store.CheckUserExistsByUsername(req.Username)
+    if err != nil {
+        http.Error(w, "Internal server error", http.StatusInternalServerError)
+        return
+    }
+    if exists {
+        http.Error(w, "Username already exists", http.StatusConflict)
+        return
+    }
+
+	newUser := models.User{
+		Username: req.Username,
+		LeetcodeUsername: req.LeetcodeUsername,
+		CreatedAt: time.Now(),
+	}
+
+	if err := h.store.CreateUser(&newUser); err != nil {
+		http.Error(w, "Failed to create user", http.StatusInternalServerError)
+		return 
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(newUser)
+}
+
+// ./backend/api/handlers/user_test.go
+package handlers
+
+import (
+	"bytes"
+	"encoding/json"
+	"go-leetcode/backend/internal/database"
+	"go-leetcode/backend/internal/testutils"
+	"go-leetcode/backend/models"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func setupUserTest(t *testing.T)(*UserHandler, *database.TestDB) {
+	testDB := database.SetupTestDB(t)
+	userStore := models.NewUserStore(testDB.DB)
+	handler := NewUserHandler(userStore)
+	return handler, testDB
+}
+
+func TestRegisterHandler(t* testing.T) {
+	handler, testDB := setupUserTest(t)
+	defer testDB.Cleanup(t)
+
+	tests := []struct {
+		name 		string 
+		body		RegisterRequest
+		wantStatus	int
+	}{
+		{
+			name: "valid registration",
+			body: RegisterRequest{
+				Username: "testuser",
+				LeetcodeUsername: "leetcode_testuser",
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "missing username",
+			body: RegisterRequest{
+				LeetcodeUsername: "leetcode_testuser",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "missing leetcode username",
+			body: RegisterRequest{
+				Username: "testuser",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func (t *testing.T) {
+			body, err := json.Marshal(tt.body)
+			testutils.CheckErr(t, err, "Failed to marshal request body")
+
+			req := httptest.NewRequest("POST", "/register", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
+
+			handler.Register(rr, req)
+
+			if status := rr.Code; status != tt.wantStatus {
+				t.Errorf("handler returned wrong status code: got %v want %v",
+					status, tt.wantStatus)
+			}
+
+			if tt.wantStatus == http.StatusCreated {
+				exists, err := handler.store.CheckUserExistsByUsername(tt.body.Username)
+				testutils.CheckErr(t, err, "Failed to check user existence")
+
+				if !exists {
+					t.Error("User not created in database")
+				}
+			}
+		})
+	}
+}
+
+// ./backend/api/handlers/health.go
+package handlers
+
+import "net/http"
+
+func HealthCheck(w http.ResponseWriter, r* http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status": "ok"}`))
+}
+
+// ./backend/api/handlers/health_test.go
+package handlers
+
+import (
+	"testing"
+	"net/http"
+	"net/http/httptest"
+)
+
+func TestHealthEndpoint(t* testing.T) {
+	req, _ := http.NewRequest("GET", "/health", nil)
+    rr := httptest.NewRecorder()
+
+    // Test the response
+    handler := http.HandlerFunc(HealthCheck)
+    handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+}
+

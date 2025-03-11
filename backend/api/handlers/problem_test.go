@@ -6,6 +6,7 @@ import (
 	"go-leetcode/backend/internal/database"
 	"go-leetcode/backend/internal/testutils"
 	"go-leetcode/backend/models"
+	"go-leetcode/backend/pkg/response"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -44,14 +45,27 @@ func TestGetProblemByID(t *testing.T) {
 		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
-	// Decode response
-	var response models.Problem
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	// Decode standardized response
+	var resp response.Response
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
 	testutils.CheckErr(t, err, "Failed to decode response")
 
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Extract problem data from response
+	problemData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal problem data")
+
+	var problem models.Problem
+	err = json.Unmarshal(problemData, &problem)
+	testutils.CheckErr(t, err, "Failed to unmarshal problem data")
+
 	// Verify problem ID matches
-	if response.ID != testProblemID {
-		t.Errorf("Expected problem ID %d, got %d", testProblemID, response.ID)
+	if problem.ID != testProblemID {
+		t.Errorf("Expected problem ID %d, got %d", testProblemID, problem.ID)
 	}
 }
 
@@ -75,14 +89,27 @@ func TestGetProblemByFrontendID(t *testing.T) {
 		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
-	// Decode response
-	var response models.Problem
-	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	// Decode standardized response
+	var resp response.Response
+	err := json.Unmarshal(rr.Body.Bytes(), &resp)
 	testutils.CheckErr(t, err, "Failed to decode response")
 
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Extract problem data from response
+	problemData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal problem data")
+
+	var problem models.Problem
+	err = json.Unmarshal(problemData, &problem)
+	testutils.CheckErr(t, err, "Failed to unmarshal problem data")
+
 	// Verify frontend ID matches
-	if response.FrontendID != testFrontendID {
-		t.Errorf("Expected frontend ID %d, got %v", testFrontendID, response.FrontendID)
+	if problem.FrontendID != testFrontendID {
+		t.Errorf("Expected frontend ID %d, got %v", testFrontendID, problem.FrontendID)
 	}
 }
 
@@ -94,7 +121,6 @@ func TestGetProblemBySlug(t *testing.T) {
 	testSlug := "two-sum"
 
 	// Create test request
-
 	req := httptest.NewRequest("POST", "/problems?slug=two-sum", nil)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -107,14 +133,27 @@ func TestGetProblemBySlug(t *testing.T) {
 		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
-	// Decode response
-	var response models.Problem
-	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	// Decode standardized response
+	var resp response.Response
+	err := json.Unmarshal(rr.Body.Bytes(), &resp)
 	testutils.CheckErr(t, err, "Failed to decode response")
 
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Extract problem data from response
+	problemData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal problem data")
+
+	var problem models.Problem
+	err = json.Unmarshal(problemData, &problem)
+	testutils.CheckErr(t, err, "Failed to unmarshal problem data")
+
 	// Verify slug matches
-	if response.TitleSlug != testSlug {
-		t.Errorf("Expected slug %s, got %s", testSlug, response.TitleSlug)
+	if problem.TitleSlug != testSlug {
+		t.Errorf("Expected slug %s, got %s", testSlug, problem.TitleSlug)
 	}
 }
 
@@ -127,19 +166,19 @@ func TestGetProblemList(t *testing.T) {
 		name           string
 		queryParams    map[string]string
 		expectedStatus int
-		validateResult func(*testing.T, models.ProblemList)
+		validateResult func(*testing.T, []models.Problem, int)
 	}{
 		{
 			name:           "Default Parameters",
 			queryParams:    map[string]string{},
 			expectedStatus: http.StatusOK,
-			validateResult: func(t *testing.T, result models.ProblemList) {
-				if len(result.Problems) > 20 {
-					t.Errorf("Expected at most 20 problems, got %d", len(result.Problems))
+			validateResult: func(t *testing.T, problems []models.Problem, total int) {
+				if len(problems) > 20 {
+					t.Errorf("Expected at most 20 problems, got %d", len(problems))
 				}
-				if result.Total < len(result.Problems) {
+				if total < len(problems) {
 					t.Errorf("Total count %d should be at least as large as returned problems %d", 
-						result.Total, len(result.Problems))
+						total, len(problems))
 				}
 			},
 		},
@@ -150,9 +189,9 @@ func TestGetProblemList(t *testing.T) {
 				"offset": "5",
 			},
 			expectedStatus: http.StatusOK,
-			validateResult: func(t *testing.T, result models.ProblemList) {
-				if len(result.Problems) > 5 {
-					t.Errorf("Expected at most 5 problems, got %d", len(result.Problems))
+			validateResult: func(t *testing.T, problems []models.Problem, total int) {
+				if len(problems) > 5 {
+					t.Errorf("Expected at most 5 problems, got %d", len(problems))
 				}
 			},
 		},
@@ -162,10 +201,10 @@ func TestGetProblemList(t *testing.T) {
 				"difficulty": "Easy",
 			},
 			expectedStatus: http.StatusOK,
-			validateResult: func(t *testing.T, result models.ProblemList) {
-				if len(result.Problems) > 0 {
-					if result.Problems[0].Difficulty != "Easy" {
-						t.Errorf("Expected Easy difficulty, got %s", result.Problems[0].Difficulty)
+			validateResult: func(t *testing.T, problems []models.Problem, total int) {
+				if len(problems) > 0 {
+					if problems[0].Difficulty != "Easy" {
+						t.Errorf("Expected Easy difficulty, got %s", problems[0].Difficulty)
 					}
 				}
 			},
@@ -176,10 +215,10 @@ func TestGetProblemList(t *testing.T) {
 				"search": "sum",
 			},
 			expectedStatus: http.StatusOK,
-			validateResult: func(t *testing.T, result models.ProblemList) {
+			validateResult: func(t *testing.T, problems []models.Problem, total int) {
 				// This test might be less reliable depending on your test data
 				// Just check if we got a response
-				if result.Total == 0 && testHasProblemWithKeyword(t, testDB, "sum") {
+				if total == 0 && testHasProblemWithKeyword(t, testDB, "sum") {
 					t.Errorf("Expected to find problems with 'sum' but got none")
 				}
 			},
@@ -191,12 +230,12 @@ func TestGetProblemList(t *testing.T) {
 				"order_dir": "desc",
 			},
 			expectedStatus: http.StatusOK,
-			validateResult: func(t *testing.T, result models.ProblemList) {
-				if len(result.Problems) > 1 {
+			validateResult: func(t *testing.T, problems []models.Problem, total int) {
+				if len(problems) > 1 {
 					// Check if first problem difficulty is >= second problem difficulty
-					if difficultyValue(result.Problems[0].Difficulty) < difficultyValue(result.Problems[1].Difficulty) {
+					if difficultyValue(problems[0].Difficulty) < difficultyValue(problems[1].Difficulty) {
 						t.Errorf("Expected descending difficulty order, got %s before %s", 
-							result.Problems[0].Difficulty, result.Problems[1].Difficulty)
+							problems[0].Difficulty, problems[1].Difficulty)
 					}
 				}
 			},
@@ -234,13 +273,39 @@ func TestGetProblemList(t *testing.T) {
 				return
 			}
 
-			// Decode response
-			var response models.ProblemList
-			err := json.Unmarshal(rr.Body.Bytes(), &response)
-			testutils.CheckErr(t, err, "Failed to decode response")
+			// Decode standardized response first
+			var resp response.Response
+			err := json.Unmarshal(rr.Body.Bytes(), &resp)
+			testutils.CheckErr(t, err, "Failed to decode standardized response")
+
+			// Check for pagination metadata
+			var pagination struct {
+				Total   int `json:"total"`
+				Page    int `json:"page"`
+				PerPage int `json:"per_page"`
+			}
+			
+			if resp.Meta != nil && resp.Meta.Pagination != nil {
+				pagination.Total = resp.Meta.Pagination.Total
+				pagination.Page = resp.Meta.Pagination.Page
+				pagination.PerPage = resp.Meta.Pagination.PerPage
+			}
+
+			// Check for errors
+			if len(resp.Errors) > 0 {
+				t.Errorf("Response contains errors: %v", resp.Errors)
+			}
+
+			// Extract problem data from response
+			problemsData, err := json.Marshal(resp.Data)
+			testutils.CheckErr(t, err, "Failed to marshal problems data")
+
+			var problems []models.Problem
+			err = json.Unmarshal(problemsData, &problems)
+			testutils.CheckErr(t, err, "Failed to unmarshal problems data")
 
 			// Validate result
-			tc.validateResult(t, response)
+			tc.validateResult(t, problems, pagination.Total)
 		})
 	}
 }

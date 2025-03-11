@@ -1,9 +1,10 @@
 package handlers
 
-import "net/http"
+import (
+	"net/http"
+	"go-leetcode/backend/pkg/response"
+)
 
-func HealthCheck(w http.ResponseWriter, r* http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"status": "ok"}`))
+func HealthCheck(w http.ResponseWriter, r *http.Request) {
+	response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

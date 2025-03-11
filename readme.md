@@ -27,7 +27,7 @@ All API responses follow a standardized format:
 
 ```json
 {
-  "data": { /* your actual response data */ },
+  "data": { /* actual response data */ },
   "meta": {
     "pagination": { 
       "total": 100, 
@@ -57,6 +57,8 @@ For error responses:
   ]
 }
 ```
+
+The API documentation can be found in [API-DOCUMENTATION.md](server/API-DOCUMENTATION.md)
 
 ## Development
 

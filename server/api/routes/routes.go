@@ -23,21 +23,35 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 
 	userStore := models.NewUserStore(db)
 	reviewStore := models.NewReviewScheduleStore(db)
+	problemStore := models.NewProblemStore(db)
+	submissionStore := models.NewSubmissionStore(db)
 
 	userHandler := handlers.NewUserHandler(userStore)
 	reviewHandler := handlers.NewReviewHandler(reviewStore)
+	problemHandler := handlers.NewProblemHandler(problemStore)
+	submissionHandler := handlers.NewSubmissionHandler(submissionStore)
 
 	router.Get("/health", handlers.HealthCheck)
 
 	router.Route("/api/users", func(router chi.Router) {
-		router.Post("/register", userHandler.Register)
+		router.Post("/", userHandler.Register)
 	})
 
 	router.Route("/api/reviews", func(router chi.Router) {
-		router.Get("/upcoming", reviewHandler.GetReviews)
-		router.Put("/update", reviewHandler.UpdateReviewSchedule)
-		router.Post("/create", reviewHandler.CreateReview)
+		router.Get("/", reviewHandler.GetReviews)
+		router.Put("/", reviewHandler.UpdateReviewSchedule)
+		router.Post("/", reviewHandler.CreateReview)
 	})
+
+	router.Route("/api/problems", func(router chi.Router) {
+		router.Get("/by-id", problemHandler.GetProblemByID)
+		router.Get("/by-frontend-id", problemHandler.GetProblemByFrontendID)
+		router.Get("/by-slug", problemHandler.GetProblemBySlug)
+		router.Get("/list", problemHandler.GetProblemList)
+	})
+
+	router.Get("/api/submissions", submissionHandler.GetSubmissions) 
+	router.Post("/api/submissions", submissionHandler.CreateSubmission)
 
 	return router
 }

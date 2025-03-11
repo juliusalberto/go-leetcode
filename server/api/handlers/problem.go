@@ -12,6 +12,10 @@ type ProblemHandler struct {
 	store *models.ProblemStore
 }
 
+func NewProblemHandler(s *models.ProblemStore)(*ProblemHandler) {
+	return &ProblemHandler{store: s}
+}
+
 func (h *ProblemHandler) GetProblemByID(w http.ResponseWriter, r *http.Request) {
 	reqID, _ := strconv.Atoi(r.URL.Query().Get("id"))
 

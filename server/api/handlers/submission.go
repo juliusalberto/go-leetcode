@@ -74,7 +74,8 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 
 	err = s.store.CreateSubmission(submissionToAdd)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to create new submission")
+		response_str := "Failed to create new submission"
+		response.Error(w, http.StatusInternalServerError, "server_error", response_str)
 		return
 	}
 

@@ -84,6 +84,12 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 
 	err = s.store.CreateSubmission(submissionToAdd)
 	if err != nil {
+		exists, _ := s.store.CheckSubmissionExists(submissionToAdd.ID)
+		if exists {
+			response.Error(w, http.StatusConflict, "conflict", "Submission with this ID already exists")
+			return
+		}
+
 		response_str := fmt.Sprintf("Failed to create new submission: %v", err)
 		response.Error(w, http.StatusInternalServerError, "server_error", response_str)
 		return

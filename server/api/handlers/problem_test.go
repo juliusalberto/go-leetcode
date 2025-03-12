@@ -74,10 +74,10 @@ func TestGetProblemByFrontendID(t *testing.T) {
 	defer testDB.Cleanup(t)
 
 	// Find a test problem from the database
-	testFrontendID := 1966
+	testFrontendID := 12
 
 	// Create test request
-	req := httptest.NewRequest("GET", "/problems?frontend_id=1966", nil)
+	req := httptest.NewRequest("GET", "/problems?frontend_id=12", nil)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 

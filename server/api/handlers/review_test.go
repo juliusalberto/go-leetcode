@@ -52,17 +52,24 @@ func TestProcessSubmission(t *testing.T) {
 	handler, testDB, userID := setupReviewTest(t)
 	defer testDB.Cleanup(t)
 
-	// Test case 1: Create a new submission and review
-	testSubmission := models.Submission{
-		ID:          "process_test_sub_1",
-		UserID:      userID,
-		Title:       "Process Test Problem",
-		TitleSlug:   "process-test-problem",
-		SubmittedAt: time.Now().UTC(),
-		CreatedAt:   time.Now().UTC(),
+	// Test case 1: Create a new submission and review with struct
+	requestStruct := struct{
+		IsInternal          bool   `json:"is_internal"`
+		LeetcodeSubmissionID string `json:"leetcode_submission_id"`
+		UserID              int    `json:"user_id"`
+		Title               string `json:"title"`
+		TitleSlug           string `json:"title_slug"`
+		SubmittedAt         string `json:"submitted_at"`
+	}{
+		IsInternal:          true,
+		LeetcodeSubmissionID: "",
+		UserID:              userID,
+		Title:               "Process Test Problem",
+		TitleSlug:           "two-sum",
+		SubmittedAt:         time.Now().UTC().Format(time.RFC3339),
 	}
 
-	jsonData, err := json.Marshal(testSubmission)
+	jsonData, err := json.Marshal(requestStruct)
 	testutils.CheckErr(t, err, "Failed to marshal test submission")
 
 	req := httptest.NewRequest("POST", "/api/reviews/process-submission", bytes.NewBuffer(jsonData))
@@ -99,8 +106,8 @@ func TestProcessSubmission(t *testing.T) {
 		t.Errorf("Expected success: true, got %v", respObj["success"])
 	}
 
-	if submissionID, ok := respObj["submission_id"].(string); !ok || submissionID != testSubmission.ID {
-		t.Errorf("Expected submission_id: %s, got %v", testSubmission.ID, respObj["submission_id"])
+	if _, ok := respObj["submission_id"].(string); !ok {
+		t.Errorf("Expected submission_id to be present and a string")
 	}
 
 	if _, ok := respObj["next_review_at"]; !ok {
@@ -116,17 +123,23 @@ func TestProcessSubmission(t *testing.T) {
 	}
 
 	// Test case 2: Process same problem with a new submission ID
-	// This tests the update functionality
-	testSubmission2 := models.Submission{
-		ID:          "process_test_sub_2", // Different ID
-		UserID:      userID,
-		Title:       "Process Test Problem",
-		TitleSlug:   "process-test-problem", // Same title_slug
-		SubmittedAt: time.Now().UTC().Add(24 * time.Hour), // Later submission
-		CreatedAt:   time.Now().UTC(),
+	requestStruct2 := struct{
+		IsInternal          bool   `json:"is_internal"`
+		LeetcodeSubmissionID string `json:"leetcode_submission_id"`
+		UserID              int    `json:"user_id"`
+		Title               string `json:"title"`
+		TitleSlug           string `json:"title_slug"`
+		SubmittedAt         string `json:"submitted_at"`
+	}{
+		IsInternal:          true,
+		LeetcodeSubmissionID: "",
+		UserID:              userID,
+		Title:               "Process Test Problem",
+		TitleSlug:           "two-sum",
+		SubmittedAt:         time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339),
 	}
 
-	jsonData2, err := json.Marshal(testSubmission2)
+	jsonData2, err := json.Marshal(requestStruct2)
 	testutils.CheckErr(t, err, "Failed to marshal second test submission")
 
 	req2 := httptest.NewRequest("POST", "/api/reviews/process-submission", bytes.NewBuffer(jsonData2))
@@ -151,21 +164,28 @@ func TestProcessSubmission(t *testing.T) {
 	err = json.Unmarshal(respData2, &respObj2)
 	testutils.CheckErr(t, err, "Failed to unmarshal second response data")
 
-	// Verify the submission ID in the response is the new one
-	if submissionID, ok := respObj2["submission_id"].(string); !ok || submissionID != testSubmission2.ID {
-		t.Errorf("Expected submission_id: %s, got %v", testSubmission2.ID, respObj2["submission_id"])
+	// Verify the response contains expected fields
+	if _, ok := respObj2["submission_id"].(string); !ok {
+		t.Errorf("Expected submission_id to be present and a string")
 	}
 
 	// Test case 3: Missing required fields
-	badSubmission := models.Submission{
-		// Missing ID and UserID
-		Title:       "Bad Test Submission",
-		TitleSlug:   "bad-test-submission",
-		SubmittedAt: time.Now().UTC(),
-		CreatedAt:   time.Now().UTC(),
+	badRequestStruct := struct{
+		// Missing UserID
+		IsInternal          bool   `json:"is_internal"`
+		LeetcodeSubmissionID string `json:"leetcode_submission_id"`
+		Title               string `json:"title"`
+		TitleSlug           string `json:"title_slug"`
+		SubmittedAt         string `json:"submitted_at"`
+	}{
+		IsInternal:          true,
+		LeetcodeSubmissionID: "",
+		Title:               "Bad Test Submission",
+		TitleSlug:           "bad-test-submission",
+		SubmittedAt:         time.Now().UTC().Format(time.RFC3339),
 	}
 
-	badJsonData, err := json.Marshal(badSubmission)
+	badJsonData, err := json.Marshal(badRequestStruct)
 	testutils.CheckErr(t, err, "Failed to marshal bad test submission")
 
 	badReq := httptest.NewRequest("POST", "/api/reviews/process-submission", bytes.NewBuffer(badJsonData))

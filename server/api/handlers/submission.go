@@ -43,10 +43,12 @@ func (s *SubmissionHandler) GetSubmissions(w http.ResponseWriter, r *http.Reques
 
 func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Request) {
 	var subReq struct{
-		UserID int`json:"user_id"`
-		Title string `json:"title"`
-		TitleSlug string `json:"title-slug"`
-		SubmittedAt string `json:"submitted_at"`
+		IsInternal 				bool `json:"is_internal"`
+		LeetcodeSubmissionID 	string `json:"leetcode_submission_id"`
+		UserID 					int`json:"user_id"`
+		Title 					string `json:"title"`
+		TitleSlug 				string `json:"title_slug"`
+		SubmittedAt 			string `json:"submitted_at"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&subReq); err != nil {
@@ -54,8 +56,16 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	id := uuid.New().String()
-    shortID := strings.Replace(id, "-", "", -1)[:12]
+	var submissionID string
+
+	if subReq.IsInternal {
+		id := uuid.New().String()
+		shortID := strings.Replace(id, "-", "", -1)[:12]
+		submissionID = fmt.Sprintf("internal-user-%s", shortID)
+	} else {
+		submissionID = fmt.Sprintf("leetcode-%s", subReq.LeetcodeSubmissionID)
+	}
+
 	submitted_time, err := time.Parse(time.RFC3339, subReq.SubmittedAt)
 
 	if err != nil {
@@ -64,7 +74,7 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 	}
 
 	submissionToAdd := models.Submission{
-		ID: fmt.Sprintf("internal-user-%d", &shortID),
+		ID: submissionID,
 		UserID: subReq.UserID,
 		Title: subReq.Title,
 		TitleSlug: subReq.TitleSlug,
@@ -74,7 +84,7 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 
 	err = s.store.CreateSubmission(submissionToAdd)
 	if err != nil {
-		response_str := "Failed to create new submission"
+		response_str := fmt.Sprintf("Failed to create new submission: %v", err)
 		response.Error(w, http.StatusInternalServerError, "server_error", response_str)
 		return
 	}

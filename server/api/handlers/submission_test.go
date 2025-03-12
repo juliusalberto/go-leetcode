@@ -36,9 +36,11 @@ func TestCreateSubmission(t *testing.T) {
 	defer testDB.Cleanup(t)
 
 	testData := map[string]interface{}{
+		"is_internal":  false,
+		"leetcode_submission_id": "1555397304",
 		"user_id":		userID,
 		"title":		"Two Sum",
-		"title-slug":	"two-sum",
+		"title_slug":	"two-sum",
 		"submitted_at": 	time.Now().UTC().Format(time.RFC3339),
 	}
 

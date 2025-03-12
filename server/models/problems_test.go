@@ -27,10 +27,10 @@ func TestGetProblemByID(t *testing.T) {
 	}
 
 	// check another one
-	problem, err = store.GetProblemByID(101)
+	problem, err = store.GetProblemByID(15)
 	testutils.CheckErr(t, err, "Failed to get problem")
-	if (problem.TitleSlug != "symmetric-tree" || problem.FrontendID != 101) {
-		t.Errorf("Expected to get symmetric tree, got: %v", problem)
+	if (problem.TitleSlug != "3sum" || problem.FrontendID != 15) {
+		t.Errorf("Expected to get 3sum tree, got: %v", problem)
 	}
 }
 
@@ -67,9 +67,9 @@ func TestGetProblemByFrontendID(t* testing.T) {
 	}
 
 	// check another one
-	problem, err = store.GetProblemByFrontendID(3271)
+	problem, err = store.GetProblemByFrontendID(27)
 	testutils.CheckErr(t, err, "Failed to get problem")
-	if (problem.TitleSlug != "hash-divided-string" || problem.ID != 3540) {
+	if (problem.TitleSlug != "remove-element" || problem.ID != 27) {
 		t.Errorf("Expected to get hash divided string, got: %v", problem)
 	}
 }

@@ -27,7 +27,7 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	submissionStore := models.NewSubmissionStore(db)
 
 	userHandler := handlers.NewUserHandler(userStore)
-	reviewHandler := handlers.NewReviewHandler(reviewStore)
+	reviewHandler := handlers.NewReviewHandler(reviewStore, submissionStore)
 	problemHandler := handlers.NewProblemHandler(problemStore)
 	submissionHandler := handlers.NewSubmissionHandler(submissionStore)
 
@@ -43,6 +43,7 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 		router.Put("/", reviewHandler.UpdateReviewSchedule)
 		router.Post("/", reviewHandler.CreateReview)
 		router.Post("/update-or-create", reviewHandler.UpdateOrCreateReview)
+		router.Post("/process-submission", reviewHandler.ProcessSubmission)
 	})
 
 	router.Route("/api/problems", func(router chi.Router) {

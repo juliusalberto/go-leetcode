@@ -20,7 +20,7 @@ func setupReviewTest(t *testing.T) (*ReviewHandler, *database.TestDB, int) {
 	reviewStore := models.NewReviewScheduleStore(testDB.DB)
 	submissionStore := models.NewSubmissionStore(testDB.DB)
 	userStore := models.NewUserStore(testDB.DB)
-	handler := NewReviewHandler(reviewStore)
+	handler := NewReviewHandler(reviewStore, submissionStore)
 
 	// create user first
 	testUser := models.User{
@@ -46,6 +46,138 @@ func setupReviewTest(t *testing.T) (*ReviewHandler, *database.TestDB, int) {
 	}
 
 	return handler, testDB, testUser.ID
+}
+
+func TestProcessSubmission(t *testing.T) {
+	handler, testDB, userID := setupReviewTest(t)
+	defer testDB.Cleanup(t)
+
+	// Test case 1: Create a new submission and review
+	testSubmission := models.Submission{
+		ID:          "process_test_sub_1",
+		UserID:      userID,
+		Title:       "Process Test Problem",
+		TitleSlug:   "process-test-problem",
+		SubmittedAt: time.Now().UTC(),
+		CreatedAt:   time.Now().UTC(),
+	}
+
+	jsonData, err := json.Marshal(testSubmission)
+	testutils.CheckErr(t, err, "Failed to marshal test submission")
+
+	req := httptest.NewRequest("POST", "/api/reviews/process-submission", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	// Call the handler
+	handler.ProcessSubmission(rr, req)
+
+	// Check response
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", rr.Code)
+	}
+
+	var resp response.Response
+	err = json.Unmarshal(rr.Body.Bytes(), &resp)
+	testutils.CheckErr(t, err, "Failed to unmarshal response")
+
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Get response data
+	respData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal response data")
+
+	var respObj map[string]interface{}
+	err = json.Unmarshal(respData, &respObj)
+	testutils.CheckErr(t, err, "Failed to unmarshal response data")
+
+	// Verify response contains expected fields
+	if success, ok := respObj["success"].(bool); !ok || !success {
+		t.Errorf("Expected success: true, got %v", respObj["success"])
+	}
+
+	if submissionID, ok := respObj["submission_id"].(string); !ok || submissionID != testSubmission.ID {
+		t.Errorf("Expected submission_id: %s, got %v", testSubmission.ID, respObj["submission_id"])
+	}
+
+	if _, ok := respObj["next_review_at"]; !ok {
+		t.Errorf("Response missing next_review_at field")
+	}
+
+	if _, ok := respObj["days_until_review"]; !ok {
+		t.Errorf("Response missing days_until_review field")
+	}
+
+	if _, ok := respObj["is_due"]; !ok {
+		t.Errorf("Response missing is_due field")
+	}
+
+	// Test case 2: Process same problem with a new submission ID
+	// This tests the update functionality
+	testSubmission2 := models.Submission{
+		ID:          "process_test_sub_2", // Different ID
+		UserID:      userID,
+		Title:       "Process Test Problem",
+		TitleSlug:   "process-test-problem", // Same title_slug
+		SubmittedAt: time.Now().UTC().Add(24 * time.Hour), // Later submission
+		CreatedAt:   time.Now().UTC(),
+	}
+
+	jsonData2, err := json.Marshal(testSubmission2)
+	testutils.CheckErr(t, err, "Failed to marshal second test submission")
+
+	req2 := httptest.NewRequest("POST", "/api/reviews/process-submission", bytes.NewBuffer(jsonData2))
+	req2.Header.Set("Content-Type", "application/json")
+	rr2 := httptest.NewRecorder()
+
+	handler.ProcessSubmission(rr2, req2)
+
+	if rr2.Code != http.StatusOK {
+		t.Errorf("Expected status 200 for second request, got %d", rr2.Code)
+	}
+
+	// Extract the data to verify it processed correctly
+	var resp2 response.Response
+	err = json.Unmarshal(rr2.Body.Bytes(), &resp2)
+	testutils.CheckErr(t, err, "Failed to unmarshal second response")
+
+	respData2, err := json.Marshal(resp2.Data)
+	testutils.CheckErr(t, err, "Failed to marshal second response data")
+
+	var respObj2 map[string]interface{}
+	err = json.Unmarshal(respData2, &respObj2)
+	testutils.CheckErr(t, err, "Failed to unmarshal second response data")
+
+	// Verify the submission ID in the response is the new one
+	if submissionID, ok := respObj2["submission_id"].(string); !ok || submissionID != testSubmission2.ID {
+		t.Errorf("Expected submission_id: %s, got %v", testSubmission2.ID, respObj2["submission_id"])
+	}
+
+	// Test case 3: Missing required fields
+	badSubmission := models.Submission{
+		// Missing ID and UserID
+		Title:       "Bad Test Submission",
+		TitleSlug:   "bad-test-submission",
+		SubmittedAt: time.Now().UTC(),
+		CreatedAt:   time.Now().UTC(),
+	}
+
+	badJsonData, err := json.Marshal(badSubmission)
+	testutils.CheckErr(t, err, "Failed to marshal bad test submission")
+
+	badReq := httptest.NewRequest("POST", "/api/reviews/process-submission", bytes.NewBuffer(badJsonData))
+	badReq.Header.Set("Content-Type", "application/json")
+	badRr := httptest.NewRecorder()
+
+	handler.ProcessSubmission(badRr, badReq)
+
+	// Should get a validation error
+	if badRr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for bad request, got %d", badRr.Code)
+	}
 }
 
 func TestUpdateOrCreateReview(t *testing.T) {

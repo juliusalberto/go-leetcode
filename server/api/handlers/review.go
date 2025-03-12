@@ -7,13 +7,16 @@ import (
 	"go-leetcode/backend/pkg/response"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/open-spaced-repetition/go-fsrs/v3"
 )
 
 type ReviewHandler struct {
-	store *models.ReviewScheduleStore
+	store           *models.ReviewScheduleStore
+	submissionStore *models.SubmissionStore
 }
 
 func (h *ReviewHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
@@ -52,8 +55,11 @@ func (h *ReviewHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusCreated, map[string]int{"id": reviewToAdd.ID})
 }
 
-func NewReviewHandler(store *models.ReviewScheduleStore) *ReviewHandler {
-	return &ReviewHandler{store: store}
+func NewReviewHandler(store *models.ReviewScheduleStore, submissionStore *models.SubmissionStore) *ReviewHandler {
+	return &ReviewHandler{
+		store:           store,
+		submissionStore: submissionStore,
+	}
 }
 
 func (h *ReviewHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
@@ -212,4 +218,110 @@ func (h *ReviewHandler) UpdateOrCreateReview(w http.ResponseWriter, r *http.Requ
 		"next_review_at":    review.NextReviewAt,
 		"days_until_review": int(review.ScheduledDays),
 	})
+}
+
+// ProcessSubmission handles creating/updating both submissions and reviews in one endpoint
+func (h *ReviewHandler) ProcessSubmission(w http.ResponseWriter, r *http.Request) {
+    // 1. Parse the submission data from request using the same structure as SubmissionHandler.CreateSubmission
+    var subReq struct{
+        IsInternal          bool   `json:"is_internal"`
+        LeetcodeSubmissionID string `json:"leetcode_submission_id"`
+        UserID              int    `json:"user_id"`
+        Title               string `json:"title"`
+        TitleSlug           string `json:"title_slug"`
+        SubmittedAt         string `json:"submitted_at"`
+    }
+
+    if err := json.NewDecoder(r.Body).Decode(&subReq); err != nil {
+        response.Error(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
+        return
+    }
+    
+    // Validate required fields
+    if subReq.UserID <= 0 {
+        response.ValidationError(w, "user_id", "Valid user ID is required")
+        return
+    }
+    
+    if subReq.TitleSlug == "" {
+        response.ValidationError(w, "title_slug", "Problem title slug is required")
+        return
+    }
+
+    // Generate submission ID based on source
+    var submissionID string
+    
+    if subReq.IsInternal {
+        // Generate an internal ID
+        id := uuid.New().String()
+        shortID := strings.Replace(id, "-", "", -1)[:12]
+        submissionID = fmt.Sprintf("internal-user-%s", shortID)
+    } else {
+        // Use the LeetCode ID with prefix
+        if subReq.LeetcodeSubmissionID == "" {
+            response.ValidationError(w, "leetcode_submission_id", "LeetcodeSubmissionID is required when IsInternal is false")
+            return
+        }
+        submissionID = fmt.Sprintf("leetcode-%s", subReq.LeetcodeSubmissionID)
+    }
+
+
+    // Parse the submission time
+    submittedTime, err := time.Parse(time.RFC3339, subReq.SubmittedAt)
+    if err != nil {
+        response.ValidationError(w, "submitted_at", "Invalid time format (expected RFC3339)")
+        return
+    }
+
+    // Create the submission object
+    sub := models.Submission{
+        ID:          submissionID,
+        UserID:      subReq.UserID,
+        Title:       subReq.Title,
+        TitleSlug:   subReq.TitleSlug,
+        CreatedAt:   time.Now().UTC(),
+        SubmittedAt: submittedTime,
+    }
+
+    // 2. Check if submission exists - create if not
+    exists, err := h.submissionStore.CheckSubmissionExists(sub.ID)
+    if err != nil {
+        response.Error(w, http.StatusInternalServerError, "server_error", 
+            fmt.Sprintf("Error checking submission: %v", err))
+        return
+    }
+    
+    if !exists {
+        if err := h.submissionStore.CreateSubmission(sub); err != nil {
+            response.Error(w, http.StatusInternalServerError, "server_error", 
+                fmt.Sprintf("Failed to create submission: %v", err))
+            return
+        }
+    } else {
+		response.Error(w, http.StatusConflict, "insertion_error", 
+                fmt.Sprintf("Submission with ID: %s already exists", sub.ID))
+		return
+	}
+    
+    // 3. Process the review using the existing method
+    review, err := h.store.UpdateOrCreateReviewForSubmission(&sub)
+    if err != nil {
+        response.Error(w, http.StatusInternalServerError, "server_error", 
+            fmt.Sprintf("Failed to process review: %v", err))
+        return
+    }
+    
+    // 4. Return comprehensive response
+    now := time.Now().UTC()
+    isDue := now.After(review.NextReviewAt)
+    
+    response.JSON(w, http.StatusOK, map[string]interface{}{
+        "success":           true,
+        "submission_id":     sub.ID,
+        "next_review_at":    review.NextReviewAt,
+        "days_until_review": int(review.ScheduledDays),
+        "is_due":            isDue,
+        "title":             sub.Title,
+        "title_slug":        sub.TitleSlug,
+    })
 }

@@ -1,0 +1,15 @@
+.git
+.github
+.gitignore
+*.md
+!API-DOCUMENTATION.md
+*.log
+*.pyc
+__pycache__
+.pytest_cache
+.env
+.venv
+poetry.lock
+pyproject.toml
+leetcode_sync.py
+scrape-problems.py

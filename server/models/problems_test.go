@@ -47,10 +47,10 @@ func TestGetProblemBySlug(t *testing.T) {
 	}
 
 	// check another one
-	problem, err = store.GetProblemBySlug("symmetric-tree")
+	problem, err = store.GetProblemBySlug("integer-to-roman")
 	testutils.CheckErr(t, err, "Failed to get problem")
-	if (problem.TitleSlug != "symmetric-tree" || problem.FrontendID != 101) {
-		t.Errorf("Expected to get symmetric tree, got: %v", problem)
+	if (problem.TitleSlug != "integer-to-roman" || problem.FrontendID != 12) {
+		t.Errorf("Expected to get integer to roman, got: %v", problem)
 	}
 }
 

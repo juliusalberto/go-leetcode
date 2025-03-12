@@ -59,3 +59,24 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusCreated, newUser)
 }
+
+// GetUser handles GET requests to fetch a user by username
+func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+	// Get username from query parameters
+	username := r.URL.Query().Get("username")
+	
+	if username == "" {
+		response.ValidationError(w, "username", "Username parameter is required")
+		return
+	}
+	
+	// Get user by username
+	user, err := h.store.GetUserByUsername(username)
+	if err != nil {
+		response.Error(w, http.StatusNotFound, "not_found", "User not found")
+		return
+	}
+	
+	// Return user information
+	response.JSON(w, http.StatusOK, user)
+}

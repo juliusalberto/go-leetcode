@@ -19,6 +19,23 @@ func setupUserTest(t *testing.T)(*UserHandler, *database.TestDB) {
 	return handler, testDB
 }
 
+func setupUserTestWithUser(t *testing.T) (*UserHandler, *database.TestDB, *models.User) {
+	testDB := database.SetupTestDB(t)
+	userStore := models.NewUserStore(testDB.DB)
+	handler := NewUserHandler(userStore)
+
+	// Create a test user
+	testUser := &models.User{
+		Username:         "testuser",
+		LeetcodeUsername: "leetcode_testuser",
+	}
+
+	err := userStore.CreateUser(testUser)
+	testutils.CheckErr(t, err, "Failed to create test user")
+
+	return handler, testDB, testUser
+}
+
 func TestRegisterHandler(t* testing.T) {
 	handler, testDB := setupUserTest(t)
 	defer testDB.Cleanup(t)
@@ -101,5 +118,70 @@ func TestRegisterHandler(t* testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGetUserHandler(t *testing.T) {
+	handler, testDB, testUser := setupUserTestWithUser(t)
+	defer testDB.Cleanup(t)
+
+	// Test case: Valid username
+	req := httptest.NewRequest("GET", "/api/users?username="+testUser.Username, nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetUser(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	// Decode standardized response
+	var resp response.Response
+	err := json.Unmarshal(rr.Body.Bytes(), &resp)
+	testutils.CheckErr(t, err, "Failed to unmarshal response")
+
+	// Check for errors
+	if len(resp.Errors) > 0 {
+		t.Errorf("Response contains errors: %v", resp.Errors)
+	}
+
+	// Convert data to User structure
+	userData, err := json.Marshal(resp.Data)
+	testutils.CheckErr(t, err, "Failed to marshal user data")
+
+	var user models.User
+	err = json.Unmarshal(userData, &user)
+	testutils.CheckErr(t, err, "Failed to unmarshal user data")
+
+	// Verify returned user data
+	if user.Username != testUser.Username {
+		t.Errorf("Expected username %s, got %s", testUser.Username, user.Username)
+	}
+
+	if user.LeetcodeUsername != testUser.LeetcodeUsername {
+		t.Errorf("Expected leetcode_username %s, got %s", testUser.LeetcodeUsername, user.LeetcodeUsername)
+	}
+
+	// Test case: Non-existent username
+	req = httptest.NewRequest("GET", "/api/users?username=nonexistent", nil)
+	rr = httptest.NewRecorder()
+
+	handler.GetUser(rr, req)
+
+	if status := rr.Code; status != http.StatusNotFound {
+		t.Errorf("Expected status code %d for non-existent user, got %d", 
+			http.StatusNotFound, status)
+	}
+
+	// Test case: Missing username parameter
+	req = httptest.NewRequest("GET", "/api/users", nil)
+	rr = httptest.NewRecorder()
+
+	handler.GetUser(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("Expected status code %d for missing username, got %d", 
+			http.StatusBadRequest, status)
 	}
 }

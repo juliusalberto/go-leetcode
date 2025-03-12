@@ -52,7 +52,7 @@ func (s *UserStore) GetUserByID(id int)(User, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return User{}, fmt.Errorf("user with ID %d not found", err)
+			return User{}, fmt.Errorf("user with ID %d not found", id)
 		}
 
 		return User{}, fmt.Errorf("error fetching user: %v", err)
@@ -75,7 +75,7 @@ func (s *UserStore) GetUserByUsername(username string) (User, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return User{}, fmt.Errorf("user with ID %d not found", err)
+			return User{}, fmt.Errorf("user with username %s not found", username)
 		}
 
 		return User{}, fmt.Errorf("error fetching user: %v", err)

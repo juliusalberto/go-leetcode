@@ -37,6 +37,18 @@ jobs:
       working-directory: ./server
       run: go mod download
 
+    - name: Create .env.test file
+      working-directory: ./server
+      run: |
+        cat << EOF > .env.test
+        DB_HOST=localhost
+        DB_PORT=5432
+        DB_USER=postgres
+        DB_PASSWORD=postgres
+        DB_NAME=leetcode_test
+        EOF
+        cat .env.test
+
     - name: Run migrations
       working-directory: ./server
       run: |

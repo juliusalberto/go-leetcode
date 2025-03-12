@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"go-leetcode/backend/models"
 	"go-leetcode/backend/pkg/response"
 	"net/http"
@@ -201,7 +202,8 @@ func (h *ReviewHandler) UpdateOrCreateReview(w http.ResponseWriter, r *http.Requ
 	review, err := h.store.UpdateOrCreateReviewForSubmission(&req)
 	
 	if err != nil{
-		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to update or create review")
+		err_string := fmt.Sprintf("Failed to update or create review: %v", err)
+		response.Error(w, http.StatusInternalServerError, "server_error", err_string)
 		return
 	}
 

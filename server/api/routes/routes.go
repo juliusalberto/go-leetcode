@@ -35,12 +35,14 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 
 	router.Route("/api/users", func(router chi.Router) {
 		router.Post("/", userHandler.Register)
+		router.Get("/", userHandler.GetUser)
 	})
 
 	router.Route("/api/reviews", func(router chi.Router) {
 		router.Get("/", reviewHandler.GetReviews)
 		router.Put("/", reviewHandler.UpdateReviewSchedule)
 		router.Post("/", reviewHandler.CreateReview)
+		router.Post("/update-or-create", reviewHandler.UpdateOrCreateReview)
 	})
 
 	router.Route("/api/problems", func(router chi.Router) {

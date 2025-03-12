@@ -49,7 +49,7 @@ jobs:
         EOF
         cat .env.test
 
-    - name: Run migrations
+    - name: Run migrations and seed data
       working-directory: ./server
       run: |
         # Install migration tool
@@ -58,6 +58,9 @@ jobs:
         # Run migrations
         export POSTGRESQL_URL="postgres://postgres:postgres@localhost:5432/leetcode_test?sslmode=disable"
         migrate -database ${POSTGRESQL_URL} -path migrations up
+        
+        # Seed test problems data
+        PGPASSWORD=postgres psql -h localhost -U postgres -d leetcode_test -f migrations/seed_test_problems.sql
 
     - name: Run tests
       working-directory: ./server

@@ -34,9 +34,11 @@ jobs:
         go-version: '1.24'
 
     - name: Install dependencies
+      working-directory: ./server
       run: go mod download
 
     - name: Run migrations
+      working-directory: ./server
       run: |
         # Install migration tool
         go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
@@ -46,6 +48,7 @@ jobs:
         migrate -database ${POSTGRESQL_URL} -path migrations up
 
     - name: Run tests
+      working-directory: ./server
       run: go test ./... -v
       env:
         DATABASE_URL: "postgres://postgres:postgres@localhost:5432/leetcode_test?sslmode=disable"
@@ -80,7 +83,7 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
       with:
-        context: .
+        context: ./server
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

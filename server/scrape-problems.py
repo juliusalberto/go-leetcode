@@ -24,6 +24,7 @@ def insert_problem(conn, problem_data):
     with conn.cursor() as cur:
         # Map difficulty level to text
         difficulty_map = {1: "Easy", 2: "Medium", 3: "Hard"}
+        similar_questions = json.loads(problem_data['similar_questions'])
         
         # Extract data from the problem detail response
         problem = {
@@ -36,7 +37,7 @@ def insert_problem(conn, problem_data):
             'content': problem_data.get('question'),
             'topic_tags': Json(problem_data.get('topicTags', [])),
             'example_testcases': problem_data.get('exampleTestcases'),
-            'similar_questions': Json(problem_data.get('similarQuestions', '[]'))
+            'similar_questions': similar_questions
         }
 
         if not problem['content']:

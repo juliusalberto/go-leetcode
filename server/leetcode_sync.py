@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 LEETCODE_USERNAME = "celanapelangi"
 APP_USERNAME = "julius"
 BASE_URL = "http://localhost:8080"
-LIMIT = 2
+LIMIT = 20
 
 def fetch_leetcode_submissions():
     """Fetch recent accepted submissions from LeetCode GraphQL API"""
@@ -77,10 +77,10 @@ def get_user_id():
         return None
     
     data = response.json()
-    return data.get("data", {}).get("id")
+    return data.get("data", {}).get("ID")
 
-def create_submission_and_review(user_id, submission_data):
-    """Create submission in our database and trigger review creation"""
+def process_leetcode_submission(user_id, submission_data):
+    """Process a LeetCode submission through the unified endpoint"""
     # Convert LeetCode timestamp (Unix timestamp) to RFC3339 format
     unix_timestamp = int(submission_data["timestamp"])
     submitted_dt = datetime.fromtimestamp(unix_timestamp, tz=timezone.utc)
@@ -89,49 +89,39 @@ def create_submission_and_review(user_id, submission_data):
     # Current time in RFC3339
     now_rfc3339 = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     
+    # Create submission request matching the server's expected format
     submission = {
-        "leetcode_submission_id": submission_data["id"],
         "is_internal": False,
+        "leetcode_submission_id": submission_data["id"],
         "user_id": user_id,
         "title": submission_data["title"],
         "title_slug": submission_data["titleSlug"],
-        "submitted_at": submitted_rfc3339,
-        "created_at": now_rfc3339
+        "submitted_at": submitted_rfc3339
     }
     
-    # First, create the submission
-    submission_response = requests.post(f"{BASE_URL}/api/submissions", json=submission)
+    # Send to the unified endpoint
+    response = requests.post(f"{BASE_URL}/api/reviews/process-submission", json=submission)
     
-    if submission_response.status_code not in [201, 200]:
-        if submission_response.status_code == 409 and "already exists" in submission_response.text:
-            print(f"Submission {submission['leetcode_submission_id']} already exists, skipping...")
+    if response.status_code != 200:
+        if response.status_code == 409 and "already exists" in response.text:
+            print("submission already exists")
             return True
-        
-        print(f"Error creating submission: {submission_response.status_code}")
-        print(submission_response.text)
+        print(f"Error processing submission: {response.status_code}")
+        print(response.text)
         return False
     
-    print(f"Created submission: {submission['leetcode_submission_id']} - {submission['title']}")
+    # Parse the response
+    data = response.json().get("data", {})
+    next_review = data.get("next_review_at", "unknown")
+    days = data.get("days_until_review", "unknown")
+    is_due = data.get("is_due", False)
+    submission_id = data.get("submission_id", "unknown")
     
-    # Then trigger the UpdateOrCreateReview endpoint
-    submission["id"] = f"leetcode-{submission_data['id']}"
-    submission.pop("is_internal")
-
-
-    submission.pop("leetcode_submission_id")
-    review_response = requests.post(f"{BASE_URL}/api/reviews/update-or-create", json=submission)
-    
-    if review_response.status_code != 200:
-        print(f"Error creating/updating review: {review_response.status_code}")
-        print(review_response.text)
-        return False
-    
-    review_data = review_response.json().get("data", {})
-    next_review = review_data.get("next_review_at", "unknown")
-    days = review_data.get("days_until_review", "unknown")
-    
-    print(f"Created/updated review for {submission['title']}")
-    print(f"Next review at: {next_review} (in {days} days)")
+    # Format a nice output message
+    due_status = "DUE NOW" if is_due else f"due in {days} days"
+    print(f"Processed: {submission['title']} (LeetCode ID: {submission['leetcode_submission_id']})")
+    print(f"Server ID: {submission_id}")
+    print(f"Next review: {next_review} ({due_status})")
     
     return True
 
@@ -158,7 +148,7 @@ def main():
         timestamp = datetime.fromtimestamp(int(submission['timestamp']), tz=timezone.utc)
         print(f"Submitted at: {timestamp} UTC")
         
-        if create_submission_and_review(user_id, submission):
+        if process_leetcode_submission(user_id, submission):
             successful += 1
         
         # Small delay to avoid overwhelming the server

@@ -1,74 +1,94 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React from 'react';
+import { TouchableOpacity, View, ImageBackground, Text } from 'react-native';
+import { useFonts, Roboto_400Regular, Roboto_700Bold } from '@expo-google-fonts/roboto';
+import { router } from 'expo-router';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function IndexScreen() {
+  const [fontsLoaded] = useFonts({
+    Roboto_400Regular,
+    Roboto_700Bold,
+  });
 
-export default function HomeScreen() {
+  const handleContinueWithGoogle = () => {
+    router.push('/signin');
+  };
+
+  const handleExplore = () => {
+    router.push('/explore');
+  };
+
+  if (!fontsLoaded) {
+    return null; // You can replace this with a loading indicator if you like
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <View className="flex-1 bg-dark-bg">
+      {/* Header */}
+      <View className="flex-row items-center justify-center p-4 pb-2 bg-dark-bg">
+        <Text 
+          className="text-light-text text-lg font-bold text-center px-12"
+          style={{ fontFamily: 'Roboto_700Bold', letterSpacing: -0.24 }}
+        >
+          SpaceCode
+        </Text>
+      </View>
+
+      {/* Hero Image */}
+      <View className="w-full px-4 py-3">
+        <ImageBackground
+          source={{ uri: 'https://img.icons8.com/fluency/240/rocket.png' }} 
+          className="w-full h-80 rounded-xl overflow-hidden bg-accent"
+          resizeMode="contain"
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      </View>
+
+      {/* Content */}
+      <Text 
+        className="text-light-text text-2xl font-bold text-center px-4 pt-5 pb-3"
+        style={{ fontFamily: 'Roboto_700Bold', lineHeight: 34 }}
+      >
+        Master coding with spaced repetition
+      </Text>
+      
+      <Text 
+        className="text-light-text text-base text-center px-4 pt-1 pb-3"
+        style={{ fontFamily: 'Roboto_400Regular', lineHeight: 24 }}
+      >
+        Improve your coding skills by practicing with SpaceCode's spaced repetition system.
+      </Text>
+
+      {/* Primary Button */}
+      <View className="flex-row justify-between px-4 py-3 gap-3">
+        <TouchableOpacity 
+          className="flex-1 h-12 bg-primary rounded-xl justify-center items-center px-4"
+          onPress={handleContinueWithGoogle}
+        >
+          <Text 
+            className="text-light-text text-base font-bold"
+            style={{ fontFamily: 'Roboto_700Bold', letterSpacing: 0.24 }}
+          >
+            Continue with Google
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
+      {/* Secondary Button */}
+      <View className="flex-row justify-between px-4 gap-3">
+        <TouchableOpacity 
+          className="flex-1 h-12 rounded-xl justify-center items-center px-4"
+          onPress={handleExplore}
+        >
+          <Text 
+            className="text-light-text text-base font-bold"
+            style={{ fontFamily: 'Roboto_700Bold' }}
+          >
+            Explore Problems
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
+      {/* Bottom spacer */}
+      <View className="h-5 bg-dark-bg" />
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});

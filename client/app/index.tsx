@@ -14,7 +14,7 @@ export default function IndexScreen() {
   };
 
   const handleExplore = () => {
-    router.push('/explore');
+    router.push('/(tabs)/dashboard');
   };
 
   if (!fontsLoaded) {

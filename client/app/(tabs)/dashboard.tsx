@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { useFonts, Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
+import { fetchRecentSubmissions, fetchStreakData, fetchUserProblemProfile, formatTimeAgo } from '../services/leetcode/queries';
+import { Submission} from '../services/leetcode/types';
+import { format, subDays } from 'date-fns';
 
 export default function DashboardScreen() {
   const [fontsLoaded] = useFonts({
@@ -12,15 +15,102 @@ export default function DashboardScreen() {
     Roboto_700Bold,
   });
 
-  // Sample streak data for the past 30 days (you would replace this with real data)
+  const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([]);
+  const [streakData, setStreakData] = useState({
+    currentStreak: 0,
+    streakHistory: [0, 0, 0, 0, 0, 0, 0]
+  })
+  const [userProblemProfile, setUserProblemProfile] = useState<Map<string, number>>(new Map<string, number>);
+  const [loading, setLoading] = useState(true);
+
   const screenWidth = Dimensions.get('window').width - 40;
-  const streakData = [2, 3, 2, 4, 3, 5, 4]
+  
+  useEffect(() => {
+    if (!fontsLoaded) return;
+    
+    const fetchLeetCodeData = async () => {
+      try {
+        setLoading(true);
+        const username = 'elhazen'; // Example username from your GraphQL queries
+        
+        // Fetch submissions
+        const submissions = await fetchRecentSubmissions(username);
+        setRecentSubmissions(submissions);
+        
+        // Fetch streak data
+        const streak = await fetchStreakData(username);
+        
+        // Parse submission calendar to get streak history
+        const calendar = streak.calendar.submissionCalendar ? 
+          JSON.parse(streak.calendar.submissionCalendar) : {};
+        
+        // Get last 7 days
+        const dateToCountMap = new Map();
+        for (const timestamp in calendar) {
+          const date = new Date(parseInt(timestamp) * 1000)
+          const dateKey = format(date, "yyyy-MM-dd");
+          dateToCountMap.set(dateKey, calendar[timestamp])
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const last7Days: number[] = [];
+
+        for (let i = 6; i >= 0; i--) {
+          // start from today 
+          const date = subDays(today, i);
+          const dateKey = format(date, "yyyy-MM-dd");
+          const count = dateToCountMap.get(dateKey) || 0
+          last7Days.push(count)
+        }
+
+        // find the current streak by looping through the dateToCount
+        // and check if there is any missing date
+        const calculateStreak = (dateToCountMap: Map<string, number>) => {
+          let currentStreak = 0;
+          let currentDate = new Date();
+          currentDate.setHours(0, 0, 0, 0);
+          
+          // Start with today and go backwards
+          while (true) {
+            const dateKey = format(subDays(currentDate, 1), 'yyyy-MM-dd');
+            
+            // Check if this date has submissions
+            if (dateToCountMap.has(dateKey) && dateToCountMap.get(dateKey) > 0) {
+              currentStreak++;
+              // Move to previous day
+              currentDate = subDays(currentDate, 1);
+            } else {
+              // Break the streak when we find a day with no submissions
+              break;
+            }
+          }
+          
+          return currentStreak;
+        };
+        
+        setStreakData({
+          currentStreak: calculateStreak(dateToCountMap),
+          streakHistory: last7Days
+        });
+        
+        const userProblems = await fetchUserProblemProfile(username);
+        setUserProblemProfile(userProblems);
+      } catch (error) {
+        console.error('Error fetching LeetCode data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeetCodeData();
+  }, [fontsLoaded]);
   
   if (!fontsLoaded) {
     return null;
   }
 
-  const handleProblemPress = (problem) => {
+  const handleProblemPress = (problem: { slug: string }) => {
     // Navigate to problem details
     router.push(`/problem/${problem.slug}`);
   };
@@ -54,7 +144,7 @@ export default function DashboardScreen() {
               className="text-[#8A9DC0] text-sm leading-normal"
               style={{ fontFamily: 'Roboto_400Regular' }}
             >
-              4 days
+              {streakData.currentStreak} days
             </Text>
           </View>
         </View>
@@ -88,85 +178,38 @@ export default function DashboardScreen() {
           Recently Attempted
         </Text>
 
-        <TouchableOpacity 
-          className="flex-row items-center gap-4 bg-[#131C24] px-4 min-h-14 justify-between"
-          onPress={() => handleProblemPress({ slug: 'two-sum' })}
-        >
-          <Text 
-            className="text-[#F8F9FB] text-base leading-normal flex-1 truncate"
-            style={{ fontFamily: 'Roboto_400Regular' }}
-          >
-            Two Sum
+        {loading ? (
+          <Text className="text-[#8A9DC0] text-base px-4 py-2" style={{ fontFamily: 'Roboto_400Regular' }}>
+            Loading recent submissions...
           </Text>
-          <View className="shrink-0">
-            <Text 
-              className="text-[#8A9DC0] text-sm leading-normal"
-              style={{ fontFamily: 'Roboto_400Regular' }}
+        ): recentSubmissions.length > 0? ( 
+          recentSubmissions.slice(0, 4).map((submission) => (
+            <TouchableOpacity 
+              key={submission.id}
+              className="flex-row items-center gap-4 bg-[#131C24] px-4 min-h-14 justify-between"
+              onPress={() => handleProblemPress({ slug: submission.titleSlug })}
             >
-              3 days ago
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          className="flex-row items-center gap-4 bg-[#131C24] px-4 min-h-14 justify-between"
-          onPress={() => handleProblemPress({ slug: 'add-two-numbers' })}
-        >
-          <Text 
-            className="text-[#F8F9FB] text-base leading-normal flex-1 truncate"
-            style={{ fontFamily: 'Roboto_400Regular' }}
-          >
-            Add Two Numbers
+              <Text 
+                className="text-[#F8F9FB] text-base leading-normal flex-1 truncate"
+                style={{ fontFamily: 'Roboto_400Regular' }}
+              >
+                {submission.title}
+              </Text>
+              <View className="shrink-0">
+                <Text 
+                  className="text-[#8A9DC0] text-sm leading-normal"
+                  style={{ fontFamily: 'Roboto_400Regular' }}
+                >
+                  {formatTimeAgo(submission.timestamp)}
+                </Text>
+              </View>
+            </TouchableOpacity>
+        ))
+        ): (
+          <Text className='text-[#8A9DC0] text-base px-4 py-2' style={{ fontFamily: 'Roboto_400Regular'}}>
+            No recent submissions found
           </Text>
-          <View className="shrink-0">
-            <Text 
-              className="text-[#8A9DC0] text-sm leading-normal"
-              style={{ fontFamily: 'Roboto_400Regular' }}
-            >
-              3 days ago
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          className="flex-row items-center gap-4 bg-[#131C24] px-4 min-h-14 justify-between"
-          onPress={() => handleProblemPress({ slug: 'number-of-islands' })}
-        >
-          <Text 
-            className="text-[#F8F9FB] text-base leading-normal flex-1 truncate"
-            style={{ fontFamily: 'Roboto_400Regular' }}
-          >
-            Number of Islands
-          </Text>
-          <View className="shrink-0">
-            <Text 
-              className="text-[#8A9DC0] text-sm leading-normal"
-              style={{ fontFamily: 'Roboto_400Regular' }}
-            >
-              2 days ago
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          className="flex-row items-center gap-4 bg-[#131C24] px-4 min-h-14 justify-between"
-          onPress={() => handleProblemPress({ slug: 'longest-substring-without-repeating-characters' })}
-        >
-          <Text 
-            className="text-[#F8F9FB] text-base leading-normal flex-1 truncate"
-            style={{ fontFamily: 'Roboto_400Regular' }}
-          >
-            Longest Substring Without Repeating Characters
-          </Text>
-          <View className="shrink-0">
-            <Text 
-              className="text-[#8A9DC0] text-sm leading-normal"
-              style={{ fontFamily: 'Roboto_400Regular' }}
-            >
-              1 day ago
-            </Text>
-          </View>
-        </TouchableOpacity>
+        )}
 
         {/* Stats Cards */}
         <View className="flex-row flex-wrap gap-4 p-4">
@@ -181,7 +224,7 @@ export default function DashboardScreen() {
               className="text-[#F8F9FB] text-2xl font-bold leading-tight"
               style={{ fontFamily: 'Roboto_700Bold' }}
             >
-              234
+              {userProblemProfile.get("All")}
             </Text>
           </View>
 
@@ -196,33 +239,34 @@ export default function DashboardScreen() {
               className="text-[#F8F9FB] text-2xl font-bold leading-tight"
               style={{ fontFamily: 'Roboto_700Bold' }}
             >
-              12
+              {streakData.streakHistory.reduce((acc, curr) => acc + curr, 0)}
             </Text>
           </View>
         </View>
         
         {/* Streak Progress Chart - Simple Placeholder */}
-        <View className="mx-4 mb-6 p-6 rounded-xl border border-[#32415D]">
+        <View className="mx-4 mb-6 p-4 rounded-xl border border-[#32415D]">
           <Text 
-            className="text-[#F8F9FB] text-base leading-normal mb-2"
+            className="text-[#F8F9FB] text-base leading-normal mb-4"
             style={{ fontFamily: 'Roboto_500Medium' }}
           >
             Streak Progress (Last 7 Days)
           </Text>
           
           
-          <View className="h-[150px] items-center justify-center">
+          <View className="h-[200px] items-center justify-center">
             <LineChart
                   data={{
                     labels: ['', '', '', '', '', ''],
                     datasets: [
                       {
-                        data: streakData
+                        data: streakData.streakHistory
                       }
                     ]
                   }}
                   width={screenWidth}
                   height={180}
+                  yAxisInterval={2}
                   chartConfig={{
                     backgroundColor: 'transparent',
                     backgroundGradientFrom: 'transparent',
@@ -237,7 +281,8 @@ export default function DashboardScreen() {
                       r: '5',
                       strokeWidth: '2',
                       stroke: '#6366F1'
-                    }
+                    },
+                    
                   }}
                   bezier
                   style={{
@@ -247,12 +292,12 @@ export default function DashboardScreen() {
               />
           </View>
           
-          <View className="flex-row justify-between mt-2">
+          <View className="flex-row justify-between ">
             <Text 
               className="text-[#8A9DC0] text-xs"
               style={{ fontFamily: 'Roboto_400Regular' }}
             >
-              30 days ago
+              7 days ago
             </Text>
             <Text 
               className="text-[#8A9DC0] text-xs"

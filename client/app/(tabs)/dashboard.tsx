@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { useFonts, Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
 import { fetchRecentSubmissions, fetchStreakData, fetchUserProblemProfile, formatTimeAgo } from '../services/leetcode/queries';
 import { Submission} from '../services/leetcode/types';
 import { format, subDays } from 'date-fns';
+import InfoCard from '../../components/ui/InfoCard';
+import StatCard from '../../components/ui/StatCard';
 
 export default function DashboardScreen() {
   const [fontsLoaded] = useFonts({
@@ -129,46 +130,18 @@ export default function DashboardScreen() {
 
       <ScrollView>
         {/* Current Streak */}
-        <View className="flex-row items-center gap-4 bg-[#131C24] px-4 min-h-[72px] py-2">
-          <View className="items-center justify-center rounded-lg bg-[#29374C] shrink-0 w-12 h-12">
-            <Ionicons name="flame-outline" size={24} color="#F8F9FB" />
-          </View>
-          <View className="flex-col justify-center">
-            <Text 
-              className="text-[#F8F9FB] text-base leading-normal"
-              style={{ fontFamily: 'Roboto_500Medium' }}
-            >
-              Current Streak
-            </Text>
-            <Text 
-              className="text-[#8A9DC0] text-sm leading-normal"
-              style={{ fontFamily: 'Roboto_400Regular' }}
-            >
-              {streakData.currentStreak} days
-            </Text>
-          </View>
-        </View>
+        <InfoCard 
+          icon="flame-outline" 
+          title="Current Streak" 
+          subtitle={`${streakData.currentStreak} days`} 
+        />
 
         {/* Upcoming Reviews */}
-        <View className="flex-row items-center gap-4 bg-[#131C24] px-4 min-h-[72px] py-2">
-          <View className="items-center justify-center rounded-lg bg-[#29374C] shrink-0 w-12 h-12">
-            <Ionicons name="calendar-outline" size={24} color="#F8F9FB" />
-          </View>
-          <View className="flex-col justify-center">
-            <Text 
-              className="text-[#F8F9FB] text-base leading-normal"
-              style={{ fontFamily: 'Roboto_500Medium' }}
-            >
-              Upcoming Reviews
-            </Text>
-            <Text 
-              className="text-[#8A9DC0] text-sm leading-normal"
-              style={{ fontFamily: 'Roboto_400Regular' }}
-            >
-              5 reviews
-            </Text>
-          </View>
-        </View>
+        <InfoCard 
+          icon="calendar-outline" 
+          title="Upcoming Reviews" 
+          subtitle="5 reviews" 
+        />
 
         {/* Recently Attempted */}
         <Text 
@@ -213,35 +186,14 @@ export default function DashboardScreen() {
 
         {/* Stats Cards */}
         <View className="flex-row flex-wrap gap-4 p-4">
-          <View className="flex-1 min-w-[158px] flex-col gap-2 rounded-xl p-6 border border-[#32415D]">
-            <Text 
-              className="text-[#F8F9FB] text-base leading-normal"
-              style={{ fontFamily: 'Roboto_500Medium' }}
-            >
-              Total Problems Solved
-            </Text>
-            <Text 
-              className="text-[#F8F9FB] text-2xl font-bold leading-tight"
-              style={{ fontFamily: 'Roboto_700Bold' }}
-            >
-              {userProblemProfile.get("All")}
-            </Text>
-          </View>
-
-          <View className="flex-1 min-w-[158px] flex-col gap-2 rounded-xl p-6 border border-[#32415D]">
-            <Text 
-              className="text-[#F8F9FB] text-base leading-normal"
-              style={{ fontFamily: 'Roboto_500Medium' }}
-            >
-              Problems Solved This Week
-            </Text>
-            <Text 
-              className="text-[#F8F9FB] text-2xl font-bold leading-tight"
-              style={{ fontFamily: 'Roboto_700Bold' }}
-            >
-              {streakData.streakHistory.reduce((acc, curr) => acc + curr, 0)}
-            </Text>
-          </View>
+          <StatCard 
+            title="Total Problems Solved" 
+            value={userProblemProfile.get("All") || 0} 
+          />
+          <StatCard 
+            title="Problems Solved This Week" 
+            value={streakData.streakHistory.reduce((acc, curr) => acc + curr, 0)} 
+          />
         </View>
         
         {/* Streak Progress Chart - Simple Placeholder */}

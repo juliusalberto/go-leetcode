@@ -56,5 +56,9 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	router.Get("/api/submissions", submissionHandler.GetSubmissions) 
 	router.Post("/api/submissions", submissionHandler.CreateSubmission)
 
+	// LeetCode API proxy endpoint
+	router.Options("/api/proxy/leetcode", handlers.HandleLeetCodeProxyOptions)
+	router.Post("/api/proxy/leetcode", handlers.LeetCodeProxyHandler)
+
 	return router
 }

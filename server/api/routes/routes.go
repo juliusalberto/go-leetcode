@@ -20,6 +20,7 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	router.Use(chimiddleware.Recoverer)
 	router.Use(chimiddleware.SetHeader("Content-Type", "application/json"))
 	router.Use(middleware.LoggingMiddleware(logger))
+	router.Use(middleware.CorsMiddleware)
 
 	userStore := models.NewUserStore(db)
 	reviewStore := models.NewReviewScheduleStore(db)
@@ -57,7 +58,6 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	router.Post("/api/submissions", submissionHandler.CreateSubmission)
 
 	// LeetCode API proxy endpoint
-	router.Options("/api/proxy/leetcode", handlers.HandleLeetCodeProxyOptions)
 	router.Post("/api/proxy/leetcode", handlers.LeetCodeProxyHandler)
 
 	return router

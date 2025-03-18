@@ -46,11 +46,6 @@ func LeetCodeProxyHandler(w http.ResponseWriter, r *http.Request) {
 	// Set content type header
 	w.Header().Set("Content-Type", "application/json")
 
-	// Set CORS headers to allow requests from your frontend
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
 	// Copy response status code
 	w.WriteHeader(resp.StatusCode)
 
@@ -58,10 +53,3 @@ func LeetCodeProxyHandler(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, resp.Body)
 }
 
-// HandleLeetCodeProxyOptions handles OPTIONS requests for CORS preflight
-func HandleLeetCodeProxyOptions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-	w.WriteHeader(http.StatusOK)
-}

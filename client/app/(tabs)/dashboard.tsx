@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { useFonts, Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { router } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
-import { fetchRecentSubmissions, fetchStreakData, fetchUserProblemProfile, formatTimeAgo } from '../services/leetcode/queries';
-import { Submission} from '../services/leetcode/types';
+import { formatTimeAgo } from '../services/leetcode/queries';
 import { format, subDays } from 'date-fns';
 import InfoCard from '../../components/ui/InfoCard';
 import StatCard from '../../components/ui/StatCard';
+import { useRecentSubmissions, useStreakData, useUserProblemProfile } from '../services/leetcode/hooks';
 
 export default function DashboardScreen() {
   const [fontsLoaded] = useFonts({
@@ -16,96 +16,81 @@ export default function DashboardScreen() {
     Roboto_700Bold,
   });
 
-  const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([]);
-  const [streakData, setStreakData] = useState({
-    currentStreak: 0,
-    streakHistory: [0, 0, 0, 0, 0, 0, 0]
-  })
-  const [userProblemProfile, setUserProblemProfile] = useState<Map<string, number>>(new Map<string, number>);
-  const [loading, setLoading] = useState(true);
-
+  const username = 'elhazen'; // Example username - could come from a context or state
   const screenWidth = Dimensions.get('window').width - 40;
   
-  useEffect(() => {
-    if (!fontsLoaded) return;
+  // Use Tanstack Query hooks
+  const { 
+    data: recentSubmissions = [], 
+    isLoading: submissionsLoading 
+  } = useRecentSubmissions(username);
+  
+  const { 
+    data: streakDataResponse, 
+    isLoading: streakLoading 
+  } = useStreakData(username);
+  
+  const { 
+    data: userProblemProfile = new Map<string, number>(), 
+    isLoading: profileLoading 
+  } = useUserProblemProfile(username);
+
+  // Helper function to calculate streak
+  const calculateStreak = (dateToCountMap: Map<string, number>) => {
+    let streak = 0;
+    let currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
     
-    const fetchLeetCodeData = async () => {
-      try {
-        setLoading(true);
-        const username = 'elhazen'; // Example username from your GraphQL queries
-        
-        // Fetch submissions
-        const submissions = await fetchRecentSubmissions(username);
-        setRecentSubmissions(submissions);
-        
-        // Fetch streak data
-        const streak = await fetchStreakData(username);
-        
-        // Parse submission calendar to get streak history
-        const calendar = streak.calendar.submissionCalendar ? 
-          JSON.parse(streak.calendar.submissionCalendar) : {};
-        
-        // Get last 7 days
-        const dateToCountMap = new Map();
-        for (const timestamp in calendar) {
-          const date = new Date(parseInt(timestamp) * 1000)
-          const dateKey = format(date, "yyyy-MM-dd");
-          dateToCountMap.set(dateKey, calendar[timestamp])
-        }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const last7Days: number[] = [];
-
-        for (let i = 6; i >= 0; i--) {
-          // start from today 
-          const date = subDays(today, i);
-          const dateKey = format(date, "yyyy-MM-dd");
-          const count = dateToCountMap.get(dateKey) || 0
-          last7Days.push(count)
-        }
-
-        // find the current streak by looping through the dateToCount
-        // and check if there is any missing date
-        const calculateStreak = (dateToCountMap: Map<string, number>) => {
-          let currentStreak = 0;
-          let currentDate = new Date();
-          currentDate.setHours(0, 0, 0, 0);
-          
-          // Start with today and go backwards
-          while (true) {
-            const dateKey = format(subDays(currentDate, 1), 'yyyy-MM-dd');
-            
-            // Check if this date has submissions
-            if (dateToCountMap.has(dateKey) && dateToCountMap.get(dateKey) > 0) {
-              currentStreak++;
-              // Move to previous day
-              currentDate = subDays(currentDate, 1);
-            } else {
-              // Break the streak when we find a day with no submissions
-              break;
-            }
-          }
-          
-          return currentStreak;
-        };
-        
-        setStreakData({
-          currentStreak: calculateStreak(dateToCountMap),
-          streakHistory: last7Days
-        });
-        
-        const userProblems = await fetchUserProblemProfile(username);
-        setUserProblemProfile(userProblems);
-      } catch (error) {
-        console.error('Error fetching LeetCode data:', error);
-      } finally {
-        setLoading(false);
+    // Start with today and go backwards
+    while (true) {
+      const dateKey = format(subDays(currentDate, 1), 'yyyy-MM-dd');
+      
+      // Check if this date has submissions
+      if (dateToCountMap.has(dateKey) && dateToCountMap.get(dateKey) > 0) {
+        streak++;
+        // Move to previous day
+        currentDate = subDays(currentDate, 1);
+      } else {
+        // Break the streak when we find a day with no submissions
+        break;
       }
-    };
+    }
+    
+    return streak;
+  };
 
-    fetchLeetCodeData();
-  }, [fontsLoaded]);
+  // Process streak data
+  const streakHistory = [0, 0, 0, 0, 0, 0, 0]; // Default empty data
+  let currentStreak = 0;
+  
+  if (streakDataResponse?.calendar?.submissionCalendar) {
+    const calendar = JSON.parse(streakDataResponse.calendar.submissionCalendar);
+    
+    // Get last 7 days
+    const dateToCountMap = new Map();
+    for (const timestamp in calendar) {
+      const date = new Date(parseInt(timestamp) * 1000)
+      const dateKey = format(date, "yyyy-MM-dd");
+      dateToCountMap.set(dateKey, calendar[timestamp])
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Fill streak history
+    for (let i = 6; i >= 0; i--) {
+      const date = subDays(today, i);
+      const dateKey = format(date, "yyyy-MM-dd");
+      const count = dateToCountMap.get(dateKey) || 0
+      streakHistory[6-i] = count;
+    }
+
+    // Calculate current streak
+    currentStreak = calculateStreak(dateToCountMap);
+  }
+  
+  // Combine loading states
+  const loading = submissionsLoading || streakLoading || profileLoading || !fontsLoaded;
   
   if (!fontsLoaded) {
     return null;
@@ -133,7 +118,7 @@ export default function DashboardScreen() {
         <InfoCard 
           icon="flame-outline" 
           title="Current Streak" 
-          subtitle={`${streakData.currentStreak} days`} 
+          subtitle={`${currentStreak} days`} 
         />
 
         {/* Upcoming Reviews */}
@@ -152,9 +137,9 @@ export default function DashboardScreen() {
         </Text>
 
         {loading ? (
-          <Text className="text-[#8A9DC0] text-base px-4 py-2" style={{ fontFamily: 'Roboto_400Regular' }}>
-            Loading recent submissions...
-          </Text>
+          <View className="flex-1 justify-center items-center py-4">
+            <ActivityIndicator size="small" color="#6366F1" />
+          </View>
         ): recentSubmissions.length > 0? ( 
           recentSubmissions.slice(0, 4).map((submission) => (
             <TouchableOpacity 
@@ -192,7 +177,7 @@ export default function DashboardScreen() {
           />
           <StatCard 
             title="Problems Solved This Week" 
-            value={streakData.streakHistory.reduce((acc, curr) => acc + curr, 0)} 
+            value={streakHistory.reduce((acc, curr) => acc + curr, 0)} 
           />
         </View>
         
@@ -212,7 +197,7 @@ export default function DashboardScreen() {
                     labels: ['', '', '', '', '', ''],
                     datasets: [
                       {
-                        data: streakData.streakHistory
+                        data: streakHistory
                       }
                     ]
                   }}

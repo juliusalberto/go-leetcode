@@ -1,4 +1,4 @@
-import { ProblemResponse } from '../leetcode/types';
+import { ProblemResponse, Problem } from '../leetcode/types';
 
 // Function to fetch problems with filters
 export const fetchProblems = async ({
@@ -52,6 +52,32 @@ export const fetchProblems = async ({
     return data;
   } catch (error) {
     console.error('Error fetching problems:', error);
+    throw error;
+  }
+};
+
+// Function to fetch a specific problem by slug
+export const fetchProblemBySlug = async (slug: string): Promise<Problem> => {
+  try {
+    console.log("Fetching problem details for slug:", slug);
+    
+    const url = `http://localhost:8080/api/problems/by-slug?slug=${encodeURIComponent(slug)}`;
+    console.log("Fetching from URL:", url);
+    
+    // Make the API request
+    const response = await fetch(url);
+    
+    console.log("Response status:", response.status);
+    
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log("Received problem data:", data);
+    return data.data;
+  } catch (error) {
+    console.error('Error fetching problem details:', error);
     throw error;
   }
 };

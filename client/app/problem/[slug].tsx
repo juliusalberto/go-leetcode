@@ -208,7 +208,7 @@ export default function ProblemDetailScreen() {
           
           {/* Language Selection Tabs */}
           <View className="flex-row flex-wrap mb-4">
-            {['python', 'java', 'cpp', 'javascript'].map(lang => (
+            {['python', 'cpp'].map(lang => (
               <TouchableOpacity
                 key={lang}
                 className={`mr-2 mb-2 px-4 py-2 rounded-full ${

@@ -31,6 +31,8 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	reviewHandler := handlers.NewReviewHandler(reviewStore, submissionStore)
 	problemHandler := handlers.NewProblemHandler(problemStore)
 	submissionHandler := handlers.NewSubmissionHandler(submissionStore)
+	solutionStore := models.NewSolutionStore(db)
+	solutionHandler := handlers.NewSolutionHandler(solutionStore)
 
 	router.Get("/health", handlers.HealthCheck)
 
@@ -54,11 +56,18 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 		router.Get("/list", problemHandler.GetProblemList)
 	})
 
-	router.Get("/api/submissions", submissionHandler.GetSubmissions) 
+	router.Get("/api/submissions", submissionHandler.GetSubmissions)
 	router.Post("/api/submissions", submissionHandler.CreateSubmission)
 
 	// LeetCode API proxy endpoint
 	router.Post("/api/proxy/leetcode", handlers.LeetCodeProxyHandler)
+
+	router.Route("/api/solutions", func(router chi.Router) {
+		router.Post("/", solutionHandler.CreateSolution)
+		router.Get("/", solutionHandler.GetSolutions)
+		router.Put("/", solutionHandler.UpdateSolution)
+		router.Delete("/", solutionHandler.DeleteSolution)
+	})
 
 	return router
 }

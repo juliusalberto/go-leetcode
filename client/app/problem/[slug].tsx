@@ -6,12 +6,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 
 // Import API services
-import { fetchProblemBySlug} from '../services/api/problems';
+import { fetchProblemBySlug } from '../services/api/problems';
+import { fetchSolutionByID } from '../services/api/solutions';
 
 export default function ProblemDetailScreen() {
   const { slug } = useLocalSearchParams();
   const [problem, setProblem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [solutions, setSolutions] = useState<Record<string, string>>({});
   const [selectedLanguage, setSelectedLanguage] = useState('python');
   
   const [fontsLoaded] = useFonts({
@@ -32,12 +34,25 @@ export default function ProblemDetailScreen() {
           }
           const examples = extractExamples(problemData.content);
           
-          // Combine the data
+          // Set problem data
           setProblem({
             ...problemData,
-            examples,
-            solutions: {} // Will be populated when a language is selected
+            examples
           });
+          
+          // Fetch solutions for this problem
+          if (problemData.id) {
+            const solutionsData = await fetchSolutionByID(problemData.id.toString());
+            
+            // Solutions data is already in the format of { language: code }
+            setSolutions(solutionsData);
+            
+            // Set selected language to the first available one if current selection isn't available
+            const availableLanguages = Object.keys(solutionsData);
+            if (availableLanguages.length > 0 && !solutionsData[selectedLanguage]) {
+              setSelectedLanguage(availableLanguages[0]);
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching problem details:', error);
@@ -208,31 +223,52 @@ export default function ProblemDetailScreen() {
           
           {/* Language Selection Tabs */}
           <View className="flex-row flex-wrap mb-4">
-            {['python', 'cpp'].map(lang => (
-              <TouchableOpacity
-                key={lang}
-                className={`mr-2 mb-2 px-4 py-2 rounded-full ${
-                  selectedLanguage === lang ? 'bg-[#29374C]' : 'bg-[#1E2A3A]'
-                }`}
-              >
-                <Text 
-                  className="text-[#F8F9FB] text-base capitalize"
-                  style={{ fontFamily: 'Roboto_500Medium' }}
+            {Object.keys(solutions).length > 0 ? (
+              Object.keys(solutions).map(lang => (
+                <TouchableOpacity
+                  key={lang}
+                  onPress={() => setSelectedLanguage(lang)}
+                  className={`mr-2 mb-2 px-4 py-2 rounded-full ${
+                    selectedLanguage === lang ? 'bg-[#29374C]' : 'bg-[#1E2A3A]'
+                  }`}
                 >
-                  {lang === 'cpp' ? 'C++' : lang.charAt(0).toUpperCase() + lang.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text 
+                    className="text-[#F8F9FB] text-base capitalize"
+                    style={{ fontFamily: 'Roboto_500Medium' }}
+                  >
+                    {lang === 'cpp' ? 'C++' : lang.charAt(0).toUpperCase() + lang.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            ) : (
+              // Default language tabs if no solutions available yet
+              ['python', 'cpp'].map(lang => (
+                <TouchableOpacity
+                  key={lang}
+                  onPress={() => setSelectedLanguage(lang)}
+                  className={`mr-2 mb-2 px-4 py-2 rounded-full ${
+                    selectedLanguage === lang ? 'bg-[#29374C]' : 'bg-[#1E2A3A]'
+                  }`}
+                >
+                  <Text 
+                    className="text-[#F8F9FB] text-base capitalize"
+                    style={{ fontFamily: 'Roboto_500Medium' }}
+                  >
+                    {lang === 'cpp' ? 'C++' : lang.charAt(0).toUpperCase() + lang.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
           
           {/* Solution Code Block */}
-          {problem.solutions && problem.solutions[selectedLanguage] ? (
+          {solutions[selectedLanguage] ? (
             <View className="bg-[#1E2A3A] rounded-lg p-4 mb-8">
               <Text 
                 className="text-[#F8F9FB] font-mono text-sm"
                 style={{ lineHeight: 24 }}
               >
-                {problem.solutions[selectedLanguage]}
+                {solutions[selectedLanguage]}
               </Text>
             </View>
           ) : (

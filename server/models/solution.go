@@ -110,7 +110,7 @@ func (s *SolutionStore) GetSolutionByProblemAndLanguage(problemID int, language 
 	query := `
 		SELECT id, problem_id, language, solution_code, created_at
 		FROM problem_solutions
-		WHERE problem_id = $1 AND language = $2
+		WHERE problem_id = $1 AND lower(language) = $2
 	`
 
 	var solution Solution

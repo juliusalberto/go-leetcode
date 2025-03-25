@@ -9,19 +9,20 @@ export interface SubmissionRequest {
 }
 
 export interface SubmissionResponse {
-  id: string;
-  user_id: number;
+  success: boolean;
+  submission_id: string;
+  next_review_at: string;
+  days_until_review: number;
+  is_due: boolean;
   title: string;
   title_slug: string;
-  submitted_at: string;
-  created_at: string;
 }
 
 export const createSubmission = async (submission: SubmissionRequest): Promise<SubmissionResponse> => {
   try {
     console.log("Creating submission:", submission);
     
-    const url = 'http://localhost:8080/api/submissions';
+    const url = 'http://localhost:8080/api/reviews/process-submission';
     console.log("Posting to URL:", url);
     
     const response = await fetch(url, {

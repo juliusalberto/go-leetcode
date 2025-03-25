@@ -11,6 +11,7 @@ import (
 type ReviewSchedule struct {
     ID             int       `json:"id"`
     SubmissionID   string    `json:"submission_id"`
+    Title          string    `json:"title,omitempty"`
     NextReviewAt   time.Time `json:"next_review_at"`
     CreatedAt      time.Time `json:"created_at"`
     
@@ -168,7 +169,7 @@ func (s *ReviewScheduleStore) GetUpcomingReviews(userID int, limit, offset int) 
     query := `
         SELECT r.id, r.submission_id, r.next_review_at, r.created_at,
                r.stability, r.difficulty, r.elapsed_days, r.scheduled_days,
-               r.reps, r.lapses, r.state, r.last_review
+               r.reps, r.lapses, r.state, r.last_review, s.title
         FROM review_schedules r
         JOIN submissions s ON r.submission_id = s.id
         WHERE s.user_id = $1 AND r.next_review_at >= NOW()
@@ -200,6 +201,7 @@ func (s *ReviewScheduleStore) GetUpcomingReviews(userID int, limit, offset int) 
             &review.Lapses,
             &review.State,
             &lastReview,
+            &review.Title,
         ); err != nil {
             return nil, 0, fmt.Errorf("error scanning review: %v", err)
         }
@@ -232,7 +234,7 @@ func (s *ReviewScheduleStore) GetDueReviews(userID int, limit, offset int) ([]Re
     query := `
         SELECT r.id, r.submission_id, r.next_review_at, r.created_at,
                r.stability, r.difficulty, r.elapsed_days, r.scheduled_days,
-               r.reps, r.lapses, r.state, r.last_review
+               r.reps, r.lapses, r.state, r.last_review, s.title
         FROM review_schedules r
         JOIN submissions s ON r.submission_id = s.id
         WHERE s.user_id = $1 AND r.next_review_at <= NOW()
@@ -264,6 +266,7 @@ func (s *ReviewScheduleStore) GetDueReviews(userID int, limit, offset int) ([]Re
             &review.Lapses,
             &review.State,
             &lastReview,
+            &review.Title,
         ); err != nil {
             return nil, 0, fmt.Errorf("error scanning review: %v", err)
         }
@@ -282,7 +285,7 @@ func (s *ReviewScheduleStore) GetReviewsByUserID(userID int) ([]ReviewSchedule, 
     query := `
         SELECT r.id, r.submission_id, r.next_review_at, r.created_at,
                r.stability, r.difficulty, r.elapsed_days, r.scheduled_days,
-               r.reps, r.lapses, r.state, r.last_review
+               r.reps, r.lapses, r.state, r.last_review, s.title
         FROM review_schedules r
         JOIN submissions s ON r.submission_id = s.id
         WHERE s.user_id = $1
@@ -313,6 +316,7 @@ func (s *ReviewScheduleStore) GetReviewsByUserID(userID int) ([]ReviewSchedule, 
             &review.Lapses,
             &review.State,
             &lastReview,
+            &review.Title,
         ); err != nil {
             return nil, fmt.Errorf("error scanning review: %v", err)
         }
@@ -329,10 +333,11 @@ func (s *ReviewScheduleStore) GetReviewsByUserID(userID int) ([]ReviewSchedule, 
 
 func (s *ReviewScheduleStore) GetReviewByID(reviewID int) (ReviewSchedule, error) {
     query := `
-        SELECT id, submission_id, next_review_at, created_at,
-               stability, difficulty, elapsed_days, scheduled_days,
-               reps, lapses, state, last_review
-        FROM review_schedules
+        SELECT r.id, r.submission_id, r.next_review_at, r.created_at,
+               r.stability, r.difficulty, r.elapsed_days, r.scheduled_days,
+               r.reps, r.lapses, r.state, r.last_review, s.title
+        FROM review_schedules r
+        JOIN submissions s ON r.submission_id = s.id
         WHERE id = $1
     `
 
@@ -352,6 +357,7 @@ func (s *ReviewScheduleStore) GetReviewByID(reviewID int) (ReviewSchedule, error
         &review.Lapses,
         &review.State,
         &lastReview,
+        &review.Title,
     )
     
     if err != nil {
@@ -372,7 +378,7 @@ func (s *ReviewScheduleStore) GetReviewByTitleSlug(userID int, titleSlug string)
     query := `
         SELECT r.id, r.submission_id, r.next_review_at, r.created_at, 
                r.stability, r.difficulty, r.elapsed_days, r.scheduled_days,
-               r.reps, r.lapses, r.state, r.last_review
+               r.reps, r.lapses, r.state, r.last_review, s.title
         FROM review_schedules r
         JOIN submissions s ON r.submission_id = s.id
         WHERE s.user_id = $1 AND s.title_slug = $2
@@ -396,6 +402,7 @@ func (s *ReviewScheduleStore) GetReviewByTitleSlug(userID int, titleSlug string)
         &review.Lapses,
         &review.State,
         &lastReview,
+        &review.Title,
     )
     
     if err != nil {

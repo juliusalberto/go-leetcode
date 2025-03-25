@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, ScrollView } from 'react-native';
 import { useFonts, Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { Ionicons } from '@expo/vector-icons';
+import ProblemCard from '../../components/ui/ProblemCard';
 import { router } from 'expo-router';
 import { MenuProvider, Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-native-popup-menu';
 import Toast from 'react-native-toast-message';
@@ -216,40 +217,14 @@ export default function ProblemsScreen() {
               maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
               keyExtractor={(item, index) => `${item.problem.id}-${item.problem.frontend_id}-${index}`}
               renderItem={({ item }) => (
-                  <View className="flex gap-4 bg-[#131C24] px-4 py-3">
-                      <View className="flex flex-row gap-4 items-center justify-between">
-                          <TouchableOpacity
-                              className="flex-1 flex-row gap-4"
-                              onPress={() => handleProblemPress(item)}
-                          >
-                              <View className="text-[#F8F9FB] flex items-center justify-center rounded-lg bg-[#29374C] shrink-0 size-12">
-                                  {item.completed ? (
-                                      <Ionicons name="checkmark-circle-outline" size={24} color="#4CD137" />
-                                  ) : (
-                                      <Ionicons name="checkmark-circle-outline" size={24} color="#FFFFFF" />
-                                  )}
-                              </View>
-                              <View className="flex flex-1 flex-col justify-center">
-                                  <Text
-                                      className="text-[#F8F9FB] text-base font-medium leading-normal"
-                                      style={{ fontFamily: 'Roboto_500Medium' }}
-                                  >
-                                      {item.problem.title}
-                                  </Text>
-                                  <Text
-                                      style={{
-                                      fontFamily: 'Roboto_400Regular',
-                                      fontSize: 14,
-                                      lineHeight: 20,
-                                      color: difficultyColors[item.problem.difficulty] || '#8A9DC0'
-                                      }}
-                                  >
-                                      {item.problem.difficulty}
-                                  </Text>
-                              </View>
-                          </TouchableOpacity>
-                          
-                          {/* Three-dot menu */}
+                  <ProblemCard
+                      title={`${item.problem.frontend_id}. ${item.problem.title}`}
+                      subtitle={item.problem.difficulty}
+                      subtitleColor={difficultyColors[item.problem.difficulty] || '#8A9DC0'}
+                      iconName="checkmark-circle-outline"
+                      completed={item.completed}
+                      onPress={() => handleProblemPress(item)}
+                      rightElement={
                           <Menu>
                               <MenuTrigger>
                                   <View className="p-2 flex items-center justify-center">
@@ -266,8 +241,8 @@ export default function ProblemsScreen() {
                                   </MenuOption>
                               </MenuOptions>
                           </Menu>
-                      </View>
-                  </View>
+                      }
+                  />
               )}
               onEndReached={() => {
                   if (hasMore) {

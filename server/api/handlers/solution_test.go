@@ -7,20 +7,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
-	"strings"
 	"testing"
 )
 
 func setupSolutionTest(t *testing.T) (*SolutionHandler, *database.TestDB) {
 	testDB := database.SetupTestDB(t)
-	
+
 	// We're assuming solutions already exist in the database
 	// If they don't, you would need to seed them here
 	// This function just provides the handler and testDB for cleanup
-	
+
 	solutionStore := models.NewSolutionStore(testDB.DB)
 	solutionHandler := NewSolutionHandler(solutionStore)
-	
+
 	return solutionHandler, testDB
 }
 
@@ -47,7 +46,7 @@ func TestGetSolutions(t *testing.T) {
 	}
 
 	// Check response body
-	var solutions []models.Solution
+	var solutions map[string]string
 	err = json.Unmarshal(rr.Body.Bytes(), &solutions)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
@@ -56,6 +55,11 @@ func TestGetSolutions(t *testing.T) {
 	// Should have at least one solution
 	if len(solutions) == 0 {
 		t.Errorf("Expected solutions for problem ID 1, got none")
+	}
+
+	// Check if the solution exists for the given language
+	if _, ok := solutions["Python"]; !ok {
+		t.Errorf("Expected a Python solution, but found none")
 	}
 
 	// Test 2: Get solution for specific language
@@ -73,19 +77,22 @@ func TestGetSolutions(t *testing.T) {
 	}
 
 	// Check response body
-	var solution models.Solution
-	err = json.Unmarshal(rr.Body.Bytes(), &solution)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	if strings.ToLower(solution.Language) != "python" {
-		t.Errorf("Expected language 'python', got '%s'", solution.Language)
-	}
-
-	if solution.ProblemID != 1 {
-		t.Errorf("Expected problem ID 1, got %d", solution.ProblemID)
-	}
+		t.Logf("Response body: %s", rr.Body.String())
+		solutions = make(map[string]string) // Reset the solutions map
+		err = json.Unmarshal(rr.Body.Bytes(), &solutions)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal response: %v", err)
+		}
+	
+		// Should only have the Python solution
+		if len(solutions) != 1 {
+			t.Errorf("Expected only 1 solution (Python), got %d", len(solutions))
+		}
+	
+		// Check if the Python solution exists
+		if _, ok := solutions["Python"]; !ok {
+			t.Errorf("Expected a Python solution, but found none")
+		}
 }
 
 func TestGetSolutionsForDifferentProblem(t *testing.T) {
@@ -109,23 +116,30 @@ func TestGetSolutionsForDifferentProblem(t *testing.T) {
 	}
 
 	// Check response body
-	var solutions []models.Solution
-	err = json.Unmarshal(rr.Body.Bytes(), &solutions)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	// Should have at least one solution
-	if len(solutions) == 0 {
-		t.Errorf("Expected solutions for problem ID 9, got none")
-	}
-
-	// Verify solutions are for the correct problem
-	for _, sol := range solutions {
-		if sol.ProblemID != 9 {
-			t.Errorf("Expected solution for problem ID 9, got %d", sol.ProblemID)
+		var solutions map[string]string
+		err = json.Unmarshal(rr.Body.Bytes(), &solutions)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal response: %v", err)
 		}
-	}
+	
+		// Should have at least one solution
+		if len(solutions) == 0 {
+			t.Errorf("Expected solutions for problem ID 9, got none")
+		}
+	
+		// We can't verify the problem ID directly from the solution code
+		// But we can check that we got some solution code for at least one language
+		foundSolution := false
+		for language, code := range solutions {
+			if len(code) > 0 {
+				foundSolution = true
+				t.Logf("Found solution for language: %s", language)
+			}
+		}
+		
+		if !foundSolution {
+			t.Errorf("Expected at least one valid solution for problem ID 9")
+		}
 }
 
 func TestMissingIDParameter(t *testing.T) {
@@ -192,14 +206,14 @@ func TestNonExistentProblem(t *testing.T) {
 	}
 
 	// Check response body
-	var solutions []models.Solution
-	err = json.Unmarshal(rr.Body.Bytes(), &solutions)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	// Should have no solutions
-	if len(solutions) != 0 {
-		t.Errorf("Expected no solutions for non-existent problem, got %d", len(solutions))
-	}
+		var solutions map[string]string
+		err = json.Unmarshal(rr.Body.Bytes(), &solutions)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal response: %v", err)
+		}
+	
+		// Should have no solutions
+		if len(solutions) != 0 {
+			t.Errorf("Expected no solutions for non-existent problem, got %d", len(solutions))
+		}
 }

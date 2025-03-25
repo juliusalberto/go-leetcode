@@ -3,10 +3,13 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, S
 import { useFonts, Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { MenuProvider, Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-native-popup-menu';
+import Toast from 'react-native-toast-message';
 
 // Import types and API function
 import { Problem } from '../services/leetcode/types';
 import { fetchProblems } from '../services/api/problems';
+import { createSubmission } from '../services/api/submissions';
 import DropdownFilter from "../../components/ui/DropdownFilter"
 
 // Problem difficulty colors
@@ -35,6 +38,44 @@ export default function ProblemsScreen() {
   const [difficulty, setDifficulty] = useState<string | null>(null);
   const [tags, setTags] = useState<string | null>(null);
   
+  // Submission state
+  const [submittingProblemId, setSubmittingProblemId] = useState<number | null>(null);
+
+  // Handle adding a submission for a problem
+  const handleAddSubmission = async (problem: Problem) => {
+    setSubmittingProblemId(problem.id);
+    try {
+      await createSubmission({
+        is_internal: true,
+        user_id: 1, // Placeholder user ID
+        title: problem.title,
+        title_slug: problem.title_slug,
+        submitted_at: new Date().toISOString(),
+      });
+      
+      // Update the local state to mark the problem as completed
+      setProblems(prevProblems =>
+        prevProblems.map(p =>
+          p.id === problem.id ? { ...p, completed: true } : p
+        )
+      );
+      
+      Toast.show({
+        type: 'success',
+        text1: 'Submission Added',
+        text2: `Successfully recorded submission for "${problem.title}"`,
+      });
+    } catch (error) {
+      console.error('Error adding submission:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to add submission',
+      });
+    } finally {
+      setSubmittingProblemId(null);
+    }
+  };
 
   const loadProblems = async (requestedOffset = 0, append = false) => {
     console.log("loadProblems called with offset:", requestedOffset, "append:", append);
@@ -96,118 +137,140 @@ export default function ProblemsScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#131C24]">
-      {/* Header */}
-      <View className="flex items-center bg-[#131C24] p-4 pb-2 justify-between flex-row">
-        <Text 
-          className="text-[#F8F9FB] text-lg font-bold leading-tight flex-1 text-center"
-          style={{ fontFamily: 'Roboto_700Bold' }}
-        >
-          Problem Library
-        </Text>
-      </View>
+    <MenuProvider>
+      <View className="flex-1 bg-[#131C24]">
+        {/* Header */}
+        <View className="flex items-center bg-[#131C24] p-4 pb-2 justify-between flex-row">
+          <Text 
+            className="text-[#F8F9FB] text-lg font-bold leading-tight flex-1 text-center"
+            style={{ fontFamily: 'Roboto_700Bold' }}
+          >
+            Problem Library
+          </Text>
+        </View>
 
-      {/* Search Bar */}
-      <View className="px-4 py-3">
-        <View className="flex flex-col min-w-40 h-12 w-full">
-          <View className="flex w-full flex-1 items-stretch rounded-xl h-full flex-row">
-            <View className="text-[#8A9DC0] flex border-none bg-[#29374C] items-center justify-center pl-4 rounded-l-xl border-r-0">
-              <Ionicons name="search" size={24} color="#8A9DC0" />
+        {/* Search Bar */}
+        <View className="px-4 py-3">
+          <View className="flex flex-col min-w-40 h-12 w-full">
+            <View className="flex w-full flex-1 items-stretch rounded-xl h-full flex-row">
+              <View className="text-[#8A9DC0] flex border-none bg-[#29374C] items-center justify-center pl-4 rounded-l-xl border-r-0">
+                <Ionicons name="search" size={24} color="#8A9DC0" />
+              </View>
+              <TextInput
+                placeholder="Find a problem"
+                className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#F8F9FB] focus:outline-0 focus:ring-0 border-none bg-[#29374C] focus:border-none h-full placeholder:text-[#8A9DC0] px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal"
+                placeholderTextColor="#8A9DC0"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={{ fontFamily: 'Roboto_400Regular' }}
+              />
             </View>
-            <TextInput
-              placeholder="Find a problem"
-              className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#F8F9FB] focus:outline-0 focus:ring-0 border-none bg-[#29374C] focus:border-none h-full placeholder:text-[#8A9DC0] px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal"
-              placeholderTextColor="#8A9DC0"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              style={{ fontFamily: 'Roboto_400Regular' }}
-            />
           </View>
         </View>
+
+        {/* Filter Buttons */}
+        <View className='flex flex-row flex-wrap px-4 py-2 gap-2'>
+          <DropdownFilter
+              label="Difficulty"
+              selectedValue={difficulty}
+              options={['Easy', 'Medium', 'Hard']}
+              onSelect={(value) => setDifficulty(value)}
+          />
+
+          <DropdownFilter
+              label="Tag"
+              selectedValue={tags}
+              options={['Array', 'String', 'Hash Table', 'Dynamic Programming', 'Math']}
+              onSelect={(value) => setTags(value)}
+          />
+        </View>
+
+        {/* Problems List */}
+        {
+          <FlatList
+              data={problems}
+              maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+              keyExtractor={(item, index) => `${item.id}-${item.frontend_id}-${index}`}
+              renderItem={({ item }) => (
+                  <View className="flex gap-4 bg-[#131C24] px-4 py-3">
+                      <View className="flex flex-row gap-4 items-center justify-between">
+                          <TouchableOpacity 
+                              className="flex-1 flex-row gap-4"
+                              onPress={() => handleProblemPress(item)}
+                          >
+                              <View className="text-[#F8F9FB] flex items-center justify-center rounded-lg bg-[#29374C] shrink-0 size-12">
+                                  {item.completed ? (
+                                      <Ionicons name="checkmark-circle-outline" size={24} color="#4CD137" />
+                                  ) : (
+                                      <Ionicons name="checkmark-circle-outline" size={24} color="#FFFFFF" />
+                                  )}
+                              </View>
+                              <View className="flex flex-1 flex-col justify-center">
+                                  <Text 
+                                      className="text-[#F8F9FB] text-base font-medium leading-normal"
+                                      style={{ fontFamily: 'Roboto_500Medium' }}
+                                  >
+                                      {item.title}
+                                  </Text>
+                                  <Text 
+                                      style={{ 
+                                      fontFamily: 'Roboto_400Regular',
+                                      fontSize: 14,
+                                      lineHeight: 20,
+                                      color: difficultyColors[item.difficulty] || '#8A9DC0'
+                                      }}
+                                  >
+                                      {item.difficulty}
+                                  </Text>
+                              </View>
+                          </TouchableOpacity>
+                          
+                          {/* Three-dot menu */}
+                          <Menu>
+                              <MenuTrigger>
+                                  <View className="p-2 flex items-center justify-center">
+                                      {submittingProblemId === item.id ? (
+                                          <ActivityIndicator size="small" color="#6366F1" />
+                                      ) : (
+                                          <Ionicons name="ellipsis-vertical" size={20} color="#8A9DC0" />
+                                      )}
+                                  </View>
+                              </MenuTrigger>
+                              <MenuOptions>
+                                  <MenuOption style={{ borderRadius: "100px" }} onSelect={() => handleAddSubmission(item)}>
+                                      <Text className={'flex items-center justify-center p-2 text-black'}>Add Submission</Text>
+                                  </MenuOption>
+                              </MenuOptions>
+                          </Menu>
+                      </View>
+                  </View>
+              )}
+              onEndReached={() => {
+                  if (hasMore) {
+                  const newOffset = offset + 20;
+                  loadProblems(newOffset, true);
+                  setOffset(newOffset);
+                  }
+              }}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={() =>
+                  offset > 0 ? (
+                  <View className="py-4">
+                      <ActivityIndicator size="small" color="#6366F1" />
+                  </View>
+                  ) : null
+              }
+              ListEmptyComponent={() => (
+                  <View className="p-4 items-center">
+                  <Text className="text-[#8A9DC0] text-base text-center">
+                      No problems found. Try adjusting your search or filters.
+                  </Text>
+                  </View>
+              )}
+          />
+        }
       </View>
-
-      {/* Filter Buttons */}
-      <View className='flex flex-row flex-wrap px-4 py-2 gap-2'>
-        <DropdownFilter
-            label="Difficulty"
-            selectedValue={difficulty}
-            options={['Easy', 'Medium', 'Hard']}
-            onSelect={(value) => setDifficulty(value)}
-        />
-
-        <DropdownFilter
-            label="Tag"
-            selectedValue={tags}
-            options={['Array', 'String', 'Hash Table', 'Dynamic Programming', 'Math']}
-            onSelect={(value) => setTags(value)}
-        />
-      </View>
-
-      {/* Problems List */}
-      {
-        <FlatList
-            data={problems}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-            keyExtractor={(item, index) => `${item.id}-${item.frontend_id}-${index}`}
-            renderItem={({ item }) => (
-                <TouchableOpacity 
-                className="flex gap-4 bg-[#131C24] px-4 py-3"
-                onPress={() => handleProblemPress(item)}
-                >
-                    <View className="flex flex-row gap-4">
-                        <View className="text-[#F8F9FB] flex items-center justify-center rounded-lg bg-[#29374C] shrink-0 size-12">
-                            {item.completed ? (
-                                <Ionicons name="checkmark-circle-outline" size={24} color="#4CD137" />
-                            ) : (
-                                <Ionicons name="checkmark-circle-outline" size={24} color="#FFFFFF" />
-                            )}
-                        </View>
-                        <View className="flex flex-1 flex-col justify-center">
-                            <Text 
-                                className="text-[#F8F9FB] text-base font-medium leading-normal"
-                                style={{ fontFamily: 'Roboto_500Medium' }}
-                            >
-                                {item.title}
-                            </Text>
-                            <Text 
-                                style={{ 
-                                fontFamily: 'Roboto_400Regular',
-                                fontSize: 14,
-                                lineHeight: 20,
-                                color: difficultyColors[item.difficulty] || '#8A9DC0'
-                                }}
-                            >
-                                {item.difficulty}
-                            </Text>
-                        </View>
-                    </View>
-                </TouchableOpacity>
-            )}
-            onEndReached={() => {
-                if (hasMore) {
-                const newOffset = offset + 20;
-                loadProblems(newOffset, true);
-                setOffset(newOffset);
-                }
-            }}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={() =>
-                offset > 0 ? (
-                <View className="py-4">
-                    <ActivityIndicator size="small" color="#6366F1" />
-                </View>
-                ) : null
-            }
-            ListEmptyComponent={() => (
-                <View className="p-4 items-center">
-                <Text className="text-[#8A9DC0] text-base text-center">
-                    No problems found. Try adjusting your search or filters.
-                </Text>
-                </View>
-            )}
-        />
-      }
-    </View>
+    </MenuProvider>
   );
 }
 

@@ -61,3 +61,23 @@ export interface ProblemResponse {
   };
   errors: any[];
 }
+
+// Interface for problem with completion status
+export interface ProblemWithStatus {
+  problem: Problem;
+  completed: boolean;
+}
+
+// Interface for problem list with status response
+export interface ProblemWithStatusResponse {
+  data: ProblemWithStatus[];
+  meta: {
+    pagination: {
+      total: number;
+      page: number;
+      per_page: number;
+    };
+    timestamp: string;
+  };
+  errors: any[];
+}

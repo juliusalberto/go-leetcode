@@ -30,6 +30,7 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	userHandler := handlers.NewUserHandler(userStore)
 	reviewHandler := handlers.NewReviewHandler(reviewStore, submissionStore)
 	problemHandler := handlers.NewProblemHandler(problemStore)
+	problemStatusHandler := handlers.NewProblemStatusHandler(problemStore, submissionStore)
 	submissionHandler := handlers.NewSubmissionHandler(submissionStore)
 	solutionStore := models.NewSolutionStore(db)
 	solutionHandler := handlers.NewSolutionHandler(solutionStore)
@@ -54,6 +55,7 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 		router.Get("/by-frontend-id", problemHandler.GetProblemByFrontendID)
 		router.Get("/by-slug", problemHandler.GetProblemBySlug)
 		router.Get("/list", problemHandler.GetProblemList)
+		router.Get("/with-status", problemStatusHandler.GetProblemsWithStatus)
 	})
 
 	router.Get("/api/submissions", submissionHandler.GetSubmissions)

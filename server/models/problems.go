@@ -51,19 +51,19 @@ func (s *ProblemStore) GetProblemBySlug(titleSlug string)(Problem, error) {
 		SELECT id, frontend_id, title, title_slug, difficulty, is_paid_only, content, topic_tags, 
 				example_testcases, similar_questions, created_at FROM problems WHERE title_slug = $1
 	`
-	
+
 	err := s.db.QueryRow(query, titleSlug).Scan(
-        &problem.ID,
-        &problem.FrontendID,
-        &problem.Title,
-        &problem.TitleSlug,
-        &problem.Difficulty,
-        &problem.IsPaidOnly,
-        &problem.Content,
-        &topicTagsString,
-        &problem.ExampleTestcases,
-        &similarQuestionsString,
-        &problem.CreatedAt,
+		&problem.ID,
+		&problem.FrontendID,
+		&problem.Title,
+		&problem.TitleSlug,
+		&problem.Difficulty,
+		&problem.IsPaidOnly,
+		&problem.Content,
+		&topicTagsString,
+		&problem.ExampleTestcases,
+		&similarQuestionsString,
+		&problem.CreatedAt,
 	)
 
 	if err != nil {
@@ -93,19 +93,19 @@ func (s *ProblemStore) GetProblemByID (ID int)(Problem, error) {
 		SELECT id, frontend_id, title, title_slug, difficulty, is_paid_only, content, topic_tags, 
 				example_testcases, similar_questions, created_at FROM problems WHERE id = $1
 	`
-	
+
 	err := s.db.QueryRow(query, ID).Scan(
-        &problem.ID,
-        &problem.FrontendID,
-        &problem.Title,
-        &problem.TitleSlug,
-        &problem.Difficulty,
-        &problem.IsPaidOnly,
-        &problem.Content,
-        &topicTagsString,
-        &problem.ExampleTestcases,
-        &similarQuestionsString,
-        &problem.CreatedAt,
+		&problem.ID,
+		&problem.FrontendID,
+		&problem.Title,
+		&problem.TitleSlug,
+		&problem.Difficulty,
+		&problem.IsPaidOnly,
+		&problem.Content,
+		&topicTagsString,
+		&problem.ExampleTestcases,
+		&similarQuestionsString,
+		&problem.CreatedAt,
 	)
 
 	if err != nil {
@@ -135,19 +135,19 @@ func (s *ProblemStore) GetProblemByFrontendID (FrontendID int)(Problem, error) {
 		SELECT id, frontend_id, title, title_slug, difficulty, is_paid_only, content, topic_tags, 
 				example_testcases, similar_questions, created_at FROM problems WHERE frontend_id = $1
 	`
-	
+
 	err := s.db.QueryRow(query, FrontendID).Scan(
-        &problem.ID,
-        &problem.FrontendID,
-        &problem.Title,
-        &problem.TitleSlug,
-        &problem.Difficulty,
-        &problem.IsPaidOnly,
-        &problem.Content,
-        &topicTagsString,
-        &problem.ExampleTestcases,
-        &similarQuestionsString,
-        &problem.CreatedAt,
+		&problem.ID,
+		&problem.FrontendID,
+		&problem.Title,
+		&problem.TitleSlug,
+		&problem.Difficulty,
+		&problem.IsPaidOnly,
+		&problem.Content,
+		&topicTagsString,
+		&problem.ExampleTestcases,
+		&similarQuestionsString,
+		&problem.CreatedAt,
 	)
 
 	if err != nil {
@@ -172,7 +172,7 @@ func (s *ProblemStore) GetProblemByFrontendID (FrontendID int)(Problem, error) {
 type ProblemFilter struct {
 	Difficulty string 
 	Tags []string 
-	SearchKeyword string 
+	SearchKeyword string
 	PaidOnly *bool
 }
 
@@ -197,8 +197,8 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 
 	countQuery := `SELECT COUNT(*) FROM problems WHERE 1 = 1`
 
-	// and then we add the query based on the filter 
-	var whereClause string 
+	// and then we add the query based on the filter
+	var whereClause string
 	var params []interface{}
 	paramPos := 1
 
@@ -224,18 +224,18 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 		tagConditions := []string{}
 
 		for _, tag := range options.Filter.Tags {
-			tagClause := fmt.Sprintf("topic_tags @> $%d::jsonb", paramPos)  
+			tagClause := fmt.Sprintf("topic_tags @> $%d::jsonb", paramPos)
 			tagConditions = append(tagConditions, tagClause)
-		
+
 			tagStruct := []map[string]string{
 				{"slug": tag},
 			}
-		
+
 			jsonb, err := json.Marshal(tagStruct)
 			if err != nil {
 				return ProblemList{}, err
 			}
-		
+
 			params = append(params, string(jsonb))  // Convert byte slice to string
 			paramPos++
 		}
@@ -272,7 +272,7 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 				"frontend_id": "frontend_id",
 				"created_at": "created_at",
 			}
-	
+
 			if column, exists := validColumns[options.OrderBy]; exists {
 				orderClause = fmt.Sprintf(" ORDER BY %s %s", column, direction)
 			} else {
@@ -287,11 +287,11 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 
 	limitOffsetClause := fmt.Sprintf(" LIMIT $%d OFFSET $%d", paramPos, paramPos + 1)
 	paramPos += 2
-	
+
 	params = append(params, options.Limit, options.Offset)
 
 	query := baseQuery + whereClause + orderClause + limitOffsetClause
-    countQuery = countQuery + whereClause
+	countQuery = countQuery + whereClause
 
 	var total int
 	err := s.db.QueryRow(countQuery, params[:paramPos - 3]...).Scan(&total)
@@ -311,21 +311,21 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 	defer rows.Close()
 
 	for rows.Next() {
-		var problem Problem 
+		var problem Problem
 		var topicTagsString, similarQuestionsString string
 
 		err := rows.Scan(
 			&problem.ID,
-            &problem.FrontendID,
-            &problem.Title,
-            &problem.TitleSlug,
-            &problem.Difficulty,
-            &problem.IsPaidOnly,
-            &problem.Content,
-            &topicTagsString,
-            &problem.ExampleTestcases,
-            &similarQuestionsString,
-            &problem.CreatedAt,
+			&problem.FrontendID,
+			&problem.Title,
+			&problem.TitleSlug,
+			&problem.Difficulty,
+			&problem.IsPaidOnly,
+			&problem.Content,
+			&topicTagsString,
+			&problem.ExampleTestcases,
+			&similarQuestionsString,
+			&problem.CreatedAt,
 		)
 
 		if err != nil {
@@ -352,5 +352,14 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 		Problems: problems,
 		Total: total,
 	}, nil
+}
 
+type ProblemWithStatus struct {
+	Problem   Problem `json:"problem"`
+	Completed bool    `json:"completed"`
+}
+
+type ProblemListWithStatus struct {
+	Problems []ProblemWithStatus `json:"problems"`
+	Total    int                 `json:"total"`
 }

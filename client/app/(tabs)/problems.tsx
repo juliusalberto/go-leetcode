@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, ScrollView } from 'react-native';
 import { useFonts, Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { MenuProvider, Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-native-popup-menu';
 import Toast from 'react-native-toast-message';
+import debounce from 'lodash/debounce';
 
 // Import types and API function
-import { Problem } from '../services/leetcode/types';
-import { fetchProblems } from '../services/api/problems';
+import { Problem, ProblemWithStatus } from '../services/leetcode/types';
+import { fetchProblemsWithStatus} from '../services/api/problems';
 import { createSubmission } from '../services/api/submissions';
 import DropdownFilter from "../../components/ui/DropdownFilter"
 
@@ -29,10 +30,12 @@ export default function ProblemsScreen() {
   console.log("Fonts loaded:", fontsLoaded);
 
   // States
-  const [problems, setProblems] = useState<Problem[]>([]);
+  const [problems, setProblems] = useState<ProblemWithStatus[]>([]);
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [offset, setOffset] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Filter states
   const [difficulty, setDifficulty] = useState<string | null>(null);
@@ -41,8 +44,17 @@ export default function ProblemsScreen() {
   // Submission state
   const [submittingProblemId, setSubmittingProblemId] = useState<number | null>(null);
 
+  // Create debounced search function using lodash
+  const debouncedSearch = useCallback(
+    debounce((value: string) => {
+      setSearchQuery(value);
+    }, 300), // 300ms delay
+    []
+  );
+
   // Handle adding a submission for a problem
-  const handleAddSubmission = async (problem: Problem) => {
+  const handleAddSubmission = async (problemWithStatus: ProblemWithStatus) => {
+    const problem = problemWithStatus.problem;
     setSubmittingProblemId(problem.id);
     try {
       await createSubmission({
@@ -56,7 +68,7 @@ export default function ProblemsScreen() {
       // Update the local state to mark the problem as completed
       setProblems(prevProblems =>
         prevProblems.map(p =>
-          p.id === problem.id ? { ...p, completed: true } : p
+          p.problem.id === problem.id ? { ...p, completed: true } : p
         )
       );
       
@@ -85,9 +97,11 @@ export default function ProblemsScreen() {
       return;
     }
   
+    setIsLoading(true);
+    
     try {
-        console.log("Making API call to fetch problems...");
-        const response = await fetchProblems({
+        console.log("Making API call to fetch problems with status...");
+        const response = await fetchProblemsWithStatus({
         difficulty: difficulty || undefined,
         tags: tags || undefined,
         search: searchQuery || undefined,
@@ -97,9 +111,14 @@ export default function ProblemsScreen() {
 
         console.log("API response received:", response);
         
-        if (append) {
+        if (append && response?.data?.length > 0) {
           console.log("Appending problems to existing list");
-          setProblems((prev) => [...prev, ...response.data]);
+          if (problems?.length > 0) {
+            setProblems((prev) => [...prev, ...response.data]);
+          } else {
+            setProblems(response.data);
+          }
+          
         } else {
           console.log("Setting new problems list");
           setProblems(response.data);
@@ -109,7 +128,9 @@ export default function ProblemsScreen() {
     } catch (error) {
         console.error('Error loading problems:', error);
         if (!append) setProblems([]);
-    } 
+    } finally {
+        setIsLoading(false);
+    }
   };
   
     useEffect(() => {
@@ -118,7 +139,7 @@ export default function ProblemsScreen() {
         
         console.log("Calling loadProblems from first useEffect");
         loadProblems();
-    }, [fontsLoaded, difficulty, tags, searchQuery]);
+    }, [fontsLoaded]);
 
     useEffect(() => {
         console.log("Second useEffect triggered. difficulty:", difficulty, "tags:", tags, "search:", searchQuery);
@@ -128,8 +149,8 @@ export default function ProblemsScreen() {
         loadProblems(0, false);
     }, [difficulty, tags, searchQuery]);
 
-    const handleProblemPress = (problem: Problem) => {
-        router.push(`/problem/${problem.title_slug}`);
+    const handleProblemPress = (problemWithStatus: ProblemWithStatus) => {
+        router.push(`/problem/${problemWithStatus.problem.title_slug}`);
     };
 
   if (!fontsLoaded) {
@@ -160,8 +181,11 @@ export default function ProblemsScreen() {
                 placeholder="Find a problem"
                 className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#F8F9FB] focus:outline-0 focus:ring-0 border-none bg-[#29374C] focus:border-none h-full placeholder:text-[#8A9DC0] px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal"
                 placeholderTextColor="#8A9DC0"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
+                value={searchInput}
+                onChangeText={(text) => {
+                  setSearchInput(text);
+                  debouncedSearch(text);
+                }}
                 style={{ fontFamily: 'Roboto_400Regular' }}
               />
             </View>
@@ -190,11 +214,11 @@ export default function ProblemsScreen() {
           <FlatList
               data={problems}
               maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-              keyExtractor={(item, index) => `${item.id}-${item.frontend_id}-${index}`}
+              keyExtractor={(item, index) => `${item.problem.id}-${item.problem.frontend_id}-${index}`}
               renderItem={({ item }) => (
                   <View className="flex gap-4 bg-[#131C24] px-4 py-3">
                       <View className="flex flex-row gap-4 items-center justify-between">
-                          <TouchableOpacity 
+                          <TouchableOpacity
                               className="flex-1 flex-row gap-4"
                               onPress={() => handleProblemPress(item)}
                           >
@@ -206,21 +230,21 @@ export default function ProblemsScreen() {
                                   )}
                               </View>
                               <View className="flex flex-1 flex-col justify-center">
-                                  <Text 
+                                  <Text
                                       className="text-[#F8F9FB] text-base font-medium leading-normal"
                                       style={{ fontFamily: 'Roboto_500Medium' }}
                                   >
-                                      {item.title}
+                                      {item.problem.title}
                                   </Text>
-                                  <Text 
-                                      style={{ 
+                                  <Text
+                                      style={{
                                       fontFamily: 'Roboto_400Regular',
                                       fontSize: 14,
                                       lineHeight: 20,
-                                      color: difficultyColors[item.difficulty] || '#8A9DC0'
+                                      color: difficultyColors[item.problem.difficulty] || '#8A9DC0'
                                       }}
                                   >
-                                      {item.difficulty}
+                                      {item.problem.difficulty}
                                   </Text>
                               </View>
                           </TouchableOpacity>
@@ -229,7 +253,7 @@ export default function ProblemsScreen() {
                           <Menu>
                               <MenuTrigger>
                                   <View className="p-2 flex items-center justify-center">
-                                      {submittingProblemId === item.id ? (
+                                      {submittingProblemId === item.problem.id ? (
                                           <ActivityIndicator size="small" color="#6366F1" />
                                       ) : (
                                           <Ionicons name="ellipsis-vertical" size={20} color="#8A9DC0" />
@@ -254,7 +278,7 @@ export default function ProblemsScreen() {
               }}
               onEndReachedThreshold={0.5}
               ListFooterComponent={() =>
-                  offset > 0 ? (
+                  isLoading ? (
                   <View className="py-4">
                       <ActivityIndicator size="small" color="#6366F1" />
                   </View>

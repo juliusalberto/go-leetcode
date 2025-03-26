@@ -225,7 +225,7 @@ func (h *ReviewHandler) ProcessSubmission(w http.ResponseWriter, r *http.Request
     // 1. Parse the submission data from request using the same structure as SubmissionHandler.CreateSubmission
     var subReq struct{
         IsInternal          bool   `json:"is_internal"`
-        LeetcodeSubmissionID string `json:"leetcode_submission_id"`
+        LeetcodeSubmissionID string `json:"leetcode_submission_id,omitempty"`
         UserID              int    `json:"user_id"`
         Title               string `json:"title"`
         TitleSlug           string `json:"title_slug"`

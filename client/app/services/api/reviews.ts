@@ -1,19 +1,26 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, InfiniteData } from '@tanstack/react-query';
 
 export interface Review {
   id: string;
   title: string;
   due_date: string;
   status: 'due' | 'upcoming';
-  next_review_at: string;
+  next_review_at?: string;
+  created_at: string;
 }
 
-const fetchReviews = async (userId: number, limit: number = 5): Promise<Review[]> => {
+interface FetchReviewsParams {
+  pageParam?: number;
+  userId: number;
+  limit?: number;
+}
+
+const fetchReviews = async ({ pageParam = 1, userId, limit = 10 }: FetchReviewsParams): Promise<Review[]> => {
   const params = new URLSearchParams({
     user_id: userId.toString(),
     status: "due",
     per_page: limit.toString(),
-    page: '1',
+    page: pageParam.toString(),
   });
 
   const response = await fetch(`http://localhost:8080/api/reviews?${params.toString()}`, {
@@ -27,13 +34,23 @@ const fetchReviews = async (userId: number, limit: number = 5): Promise<Review[]
   }
 
   const data = await response.json();
-  return data.data.slice(0, limit);
+  // Add null check to handle cases where data.data might be null or undefined
+  return data?.data ? data.data.slice(0, limit) : [];
 };
 
 export const useReviews = (userId: number) => {
-  // useQuery provides loading state via isLoading, error, etc.
-  return useQuery<Review[], Error>({
+  return useInfiniteQuery<Review[], Error, InfiniteData<Review[]>, [string, number], number>({
     queryKey: ['recentReviews', userId],
-    queryFn: () => fetchReviews(userId, 10)
+    queryFn: ({ pageParam }) => fetchReviews({
+      pageParam,
+      userId,
+      limit: 10
+    }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      // Only fetch next page if we received a full page of results
+      // This ensures we don't keep trying to fetch when there are no more results
+      return lastPage && lastPage.length >= 10 ? allPages.length + 1 : undefined;
+    }
   });
 };

@@ -4,7 +4,7 @@
 -- Two Sum solutions
 INSERT INTO problem_solutions (problem_id, language, solution_code, created_at)
 VALUES 
-(1, 'go', 'func twoSum(nums []int, target int) []int {
+(1, 'Go', 'func twoSum(nums []int, target int) []int {
     m := make(map[int]int)
     for i, num := range nums {
         if j, exists := m[target-num]; exists {
@@ -15,14 +15,14 @@ VALUES
     return nil
 }', NOW()),
 
-(1, 'python', 'def twoSum(self, nums, target):
+(1, 'Python', 'def twoSum(self, nums, target):
     seen = {}
     for i, num in enumerate(nums):
         if target - num in seen:
             return [seen[target - num], i]
         seen[num] = i', NOW()),
 
-(1, 'javascript', 'var twoSum = function(nums, target) {
+(1, 'Javascript', 'var twoSum = function(nums, target) {
     const map = new Map();
     for (let i = 0; i < nums.length; i++) {
         const complement = target - nums[i];
@@ -34,7 +34,7 @@ VALUES
 };', NOW()),
 
 -- Add Solution to Problem ID 9 (Palindrome Number)
-(9, 'go', 'func isPalindrome(x int) bool {
+(9, 'Go', 'func isPalindrome(x int) bool {
     // Negative numbers are not palindromes
     if x < 0 {
         return false
@@ -57,7 +57,7 @@ VALUES
     return original == reversed
 }', NOW()),
 
-(9, 'python', 'def isPalindrome(self, x: int) -> bool:
+(9, 'Python', 'def isPalindrome(self, x: int) -> bool:
     # Negative numbers are not palindromes
     if x < 0:
         return False

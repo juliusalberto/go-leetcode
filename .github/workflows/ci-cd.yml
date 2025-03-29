@@ -65,7 +65,7 @@ jobs:
 
     - name: Run tests
       working-directory: ./server
-      run: go test ./... -v
+      run: go test ./... -v -p 1
       env:
         DATABASE_URL: "postgres://postgres:postgres@localhost:5432/leetcode_test?sslmode=disable"
         TEST_DATABASE_URL: "postgres://postgres:postgres@localhost:5432/leetcode_test?sslmode=disable"

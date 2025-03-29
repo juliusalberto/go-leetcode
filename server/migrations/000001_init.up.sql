@@ -1,5 +1,8 @@
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 CREATE TABLE users (
-	id serial4 NOT NULL,
+	id uuid DEFAULT gen_random_uuid() NOT NULL,
+	email varchar,
 	username varchar NOT NULL,
 	created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
 	leetcode_username varchar NOT NULL,
@@ -14,7 +17,7 @@ CREATE TABLE submissions (
 	title_slug varchar NOT NULL,
 	submitted_at timestamp NOT NULL,
 	created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
-	user_id int4 NOT NULL,
+	user_id uuid NOT NULL,
 	CONSTRAINT submissions_pkey PRIMARY KEY (id)
 );
 

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	
+	"github.com/google/uuid"
 )
 
 type ProblemStatusHandler struct {
@@ -64,7 +66,7 @@ func (h *ProblemStatusHandler) GetProblemsWithStatus(w http.ResponseWriter, r *h
 	page := (offset / limit) + 1
 
 	// TODO: Get actual user ID from context/auth middleware
-	userID := 1 // Placeholder, replace with actual user ID retrieval
+	userID := uuid.New() // Placeholder, replace with actual user ID retrieval from auth context
 
 	// Get filtered problems
 	problemsList, err := h.problemStore.ListProblems(options)

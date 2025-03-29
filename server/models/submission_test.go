@@ -5,14 +5,17 @@ import (
 	"testing"
 	"go-leetcode/backend/internal/testutils"
 	"time"
+	
+	"github.com/google/uuid"
 )
 
-func setUpData(t *testing.T, ss *SubmissionStore) {
-	ss.db.Exec("INSERT INTO users (id, username, leetcode_username, created_at) VALUES ($1, $2, $3, $4)", 1, "test_user", "test_user", time.Now())
+func setUpData(t *testing.T, ss *SubmissionStore) uuid.UUID {
+	testUserID := uuid.New()
+	ss.db.Exec("INSERT INTO users (id, username, leetcode_username, created_at) VALUES ($1, $2, $3, $4)", testUserID, "test_user", "test_user", time.Now())
 
 	sub := Submission{
 		ID:          "123",
-		UserID:      1,
+		UserID:      testUserID,
 		Title:       "Two Sum",
 		TitleSlug:   "two-sum",
 		SubmittedAt: time.Now(),
@@ -24,14 +27,15 @@ func setUpData(t *testing.T, ss *SubmissionStore) {
 		t.Errorf("Failed to create submission: %v", err)
 	}
 
-} 
+	return testUserID
+}
 
 func TestGetSubmissionByID(t *testing.T) {
 	testDB := database.SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
 	submission_store := NewSubmissionStore(testDB.DB)
-	setUpData(t, submission_store)
+	_ = setUpData(t, submission_store) // We don't need the UUID for this test
 
 	received_sub, err := submission_store.GetSubmissionByID("123")
 
@@ -49,11 +53,11 @@ func TestGetSubmissionByUserID(t *testing.T) {
 	defer testDB.Cleanup(t)
 
 	ss := NewSubmissionStore(testDB.DB)
-	setUpData(t, ss)
+	testUserID := setUpData(t, ss)
 
 	sub := Submission{
 		ID:          "124",
-		UserID:      1,
+		UserID:      testUserID,
 		Title:       "3Sum",
 		TitleSlug:   "3-sum",
 		SubmittedAt: time.Now(),
@@ -63,7 +67,7 @@ func TestGetSubmissionByUserID(t *testing.T) {
 	err := ss.CreateSubmission(sub)
 	testutils.CheckErr(t, err, "Failed to create submission")
 
-	submissions, err := ss.GetSubmissionsByUserID(1)
+	submissions, err := ss.GetSubmissionsByUserID(testUserID)
 	testutils.CheckErr(t, err, "Failed to get submissions by user ID")
 
 	if len(submissions) != 2 {
@@ -87,7 +91,7 @@ func TestCheckSubmissionExist(t *testing.T) {
 	defer testDB.Cleanup(t)
 
 	ss := NewSubmissionStore(testDB.DB)
-	setUpData(t, ss)
+	_ = setUpData(t, ss) // We don't need the UUID for this test
 
 	status, err := ss.CheckSubmissionExists("123")
 	testutils.CheckErr(t, err, "There is an error in getting the submission")

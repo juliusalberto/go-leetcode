@@ -3,6 +3,8 @@ package models
 import (
 	"database/sql"
 	"time"
+	
+	"github.com/google/uuid"
 )
 
 type ReviewLog struct {
@@ -44,7 +46,7 @@ func (s *ReviewLogStore) CreateReviewLog(log *ReviewLog) error {
 	return err
 }
 
-func (s *ReviewLogStore) GetReviewLogsByUserID(userID, limit, offset int) ([]ReviewLog, error) {
+func (s *ReviewLogStore) GetReviewLogsByUserID(userID uuid.UUID, limit, offset int) ([]ReviewLog, error) {
     query := `
         SELECT r.id, r.review_schedule_id, r.rating, r.review_date, 
                 r.elapsed_days, r.scheduled_days, r.state
@@ -86,7 +88,7 @@ func (s *ReviewLogStore) GetReviewLogsByUserID(userID, limit, offset int) ([]Rev
     return logs, nil
 }
 
-func (s *ReviewLogStore) GetReviewLogsCountByUserID(userID int) (int, error) {
+func (s *ReviewLogStore) GetReviewLogsCountByUserID(userID uuid.UUID) (int, error) {
     query := `
         SELECT COUNT(*)
         FROM review_logs r

@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"go-leetcode/backend/api/middleware"
 	"go-leetcode/backend/internal/database"
 	"go-leetcode/backend/internal/testutils"
 	"go-leetcode/backend/models"
@@ -13,9 +15,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-func setupSubmissionTest(t *testing.T)(*SubmissionHandler, *database.TestDB, int) {
+func setupSubmissionTest(t *testing.T)(*SubmissionHandler, *database.TestDB, uuid.UUID) {
 	testDB := database.SetupTestDB(t)
 	submissionStore := models.NewSubmissionStore(testDB.DB)
 	userStore := models.NewUserStore(testDB.DB)
@@ -33,12 +37,12 @@ func setupSubmissionTest(t *testing.T)(*SubmissionHandler, *database.TestDB, int
 
 func TestCreateSubmission(t *testing.T) {
 	handler, testDB, userID := setupSubmissionTest(t)
+	userUUIDKey := middleware.UserUUIDKey
 	defer testDB.Cleanup(t)
 
 	testData := map[string]interface{}{
 		"is_internal":  false,
 		"leetcode_submission_id": "1555397304",
-		"user_id":		userID,
 		"title":		"Two Sum",
 		"title_slug":	"two-sum",
 		"submitted_at": 	time.Now().UTC().Format(time.RFC3339),
@@ -50,6 +54,8 @@ func TestCreateSubmission(t *testing.T) {
 	req := httptest.NewRequest("POST", "/submissions/create", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
+	ctx := context.WithValue(req.Context(), userUUIDKey, userID)
+	req = req.WithContext(ctx)
 
 	handler.CreateSubmission(rr, req)
 
@@ -106,7 +112,7 @@ func TestGetSubmission(t *testing.T) {
 	}
 
 	// Create URL with query parameter instead of using JSON body
-	url := fmt.Sprintf("/submissions?user_id=%d", userID)
+	url := fmt.Sprintf("/submissions?user_id=%s", userID.String())
 	
 	// Create request with query parameters and no body
 	req := httptest.NewRequest("GET", url, nil)

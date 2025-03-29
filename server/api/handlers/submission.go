@@ -6,9 +6,9 @@ import (
 	"go-leetcode/backend/models"
 	"go-leetcode/backend/pkg/response"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
+	"go-leetcode/backend/api/middleware"
 
 	"github.com/google/uuid"
 )
@@ -26,7 +26,7 @@ func (s *SubmissionHandler) GetSubmissions(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	
-	userID, err := strconv.Atoi(userIDStr)
+	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		response.ValidationError(w, "user_id", "Invalid user_id parameter")
 		return
@@ -45,7 +45,6 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 	var subReq struct{
 		IsInternal 				bool `json:"is_internal"`
 		LeetcodeSubmissionID 	string `json:"leetcode_submission_id"`
-		UserID 					int`json:"user_id"`
 		Title 					string `json:"title"`
 		TitleSlug 				string `json:"title_slug"`
 		SubmittedAt 			string `json:"submitted_at"`
@@ -54,6 +53,14 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 	if err := json.NewDecoder(r.Body).Decode(&subReq); err != nil {
 		response.Error(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
 		return
+	}
+
+	// TODO: Get the authenticated user's UUID from the request context
+	// For now, use a placeholder UUID
+	userID, err := middleware.GetUserUUIDFromContext(r.Context())
+
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "server_error", "Internal server error: failed to get UUID from context")
 	}
 
 	var submissionID string
@@ -75,7 +82,7 @@ func (s *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 
 	submissionToAdd := models.Submission{
 		ID: submissionID,
-		UserID: subReq.UserID,
+		UserID: userID,
 		Title: subReq.Title,
 		TitleSlug: subReq.TitleSlug,
 		CreatedAt: time.Now().UTC(),

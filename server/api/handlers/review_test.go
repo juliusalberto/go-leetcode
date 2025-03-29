@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"go-leetcode/backend/api/middleware"
 	"go-leetcode/backend/internal/database"
 	"go-leetcode/backend/internal/testutils"
 	"go-leetcode/backend/models"
@@ -13,9 +15,11 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-func setupReviewTest(t *testing.T) (*ReviewHandler, *database.TestDB, int) {
+func setupReviewTest(t *testing.T) (*ReviewHandler, *database.TestDB, uuid.UUID) {
 	testDB := database.SetupTestDB(t)
 	reviewStore := models.NewReviewScheduleStore(testDB.DB)
 	submissionStore := models.NewSubmissionStore(testDB.DB)
@@ -51,19 +55,21 @@ func setupReviewTest(t *testing.T) (*ReviewHandler, *database.TestDB, int) {
 func TestProcessSubmission(t *testing.T) {
 	handler, testDB, userID := setupReviewTest(t)
 	defer testDB.Cleanup(t)
+	userUUIDKey := middleware.UserUUIDKey
+	
+	// Note: We're not using userID directly in the request anymore as it should be
+	// retrieved from the authentication context in the handler
 
 	// Test case 1: Create a new submission and review with struct
 	requestStruct := struct{
 		IsInternal          bool   `json:"is_internal"`
 		LeetcodeSubmissionID string `json:"leetcode_submission_id"`
-		UserID              int    `json:"user_id"`
 		Title               string `json:"title"`
 		TitleSlug           string `json:"title_slug"`
 		SubmittedAt         string `json:"submitted_at"`
 	}{
 		IsInternal:          true,
 		LeetcodeSubmissionID: "",
-		UserID:              userID,
 		Title:               "Process Test Problem",
 		TitleSlug:           "two-sum",
 		SubmittedAt:         time.Now().UTC().Format(time.RFC3339),
@@ -75,6 +81,8 @@ func TestProcessSubmission(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/reviews/process-submission", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
+	ctx := context.WithValue(req.Context(), userUUIDKey, userID)
+	req = req.WithContext(ctx)
 
 	// Call the handler
 	handler.ProcessSubmission(rr, req)
@@ -126,14 +134,12 @@ func TestProcessSubmission(t *testing.T) {
 	requestStruct2 := struct{
 		IsInternal          bool   `json:"is_internal"`
 		LeetcodeSubmissionID string `json:"leetcode_submission_id"`
-		UserID              int    `json:"user_id"`
 		Title               string `json:"title"`
 		TitleSlug           string `json:"title_slug"`
 		SubmittedAt         string `json:"submitted_at"`
 	}{
 		IsInternal:          true,
 		LeetcodeSubmissionID: "",
-		UserID:              userID,
 		Title:               "Process Test Problem",
 		TitleSlug:           "two-sum",
 		SubmittedAt:         time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339),
@@ -145,6 +151,7 @@ func TestProcessSubmission(t *testing.T) {
 	req2 := httptest.NewRequest("POST", "/api/reviews/process-submission", bytes.NewBuffer(jsonData2))
 	req2.Header.Set("Content-Type", "application/json")
 	rr2 := httptest.NewRecorder()
+	req2 = req2.WithContext(ctx)
 
 	handler.ProcessSubmission(rr2, req2)
 
@@ -171,7 +178,7 @@ func TestProcessSubmission(t *testing.T) {
 
 	// Test case 3: Missing required fields
 	badRequestStruct := struct{
-		// Missing UserID
+		// Missing TitleSlug
 		IsInternal          bool   `json:"is_internal"`
 		LeetcodeSubmissionID string `json:"leetcode_submission_id"`
 		Title               string `json:"title"`
@@ -181,7 +188,6 @@ func TestProcessSubmission(t *testing.T) {
 		IsInternal:          true,
 		LeetcodeSubmissionID: "",
 		Title:               "Bad Test Submission",
-		TitleSlug:           "bad-test-submission",
 		SubmittedAt:         time.Now().UTC().Format(time.RFC3339),
 	}
 
@@ -191,6 +197,7 @@ func TestProcessSubmission(t *testing.T) {
 	badReq := httptest.NewRequest("POST", "/api/reviews/process-submission", bytes.NewBuffer(badJsonData))
 	badReq.Header.Set("Content-Type", "application/json")
 	badRr := httptest.NewRecorder()
+	badReq = badReq.WithContext(ctx)
 
 	handler.ProcessSubmission(badRr, badReq)
 
@@ -323,7 +330,7 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 	err := handler.store.CreateReviewSchedule(&testReview)
 	testutils.CheckErr(t, err, "Failed to create test review")
 
-	url := fmt.Sprintf("/api/reviews?user_id=%d&status=upcoming&page=1&per_page=10", userID)
+	url := fmt.Sprintf("/api/reviews?user_id=%s&status=upcoming&page=1&per_page=10", userID.String())
 
 	req := httptest.NewRequest("GET", url, nil)
 	rr := httptest.NewRecorder()
@@ -413,7 +420,7 @@ func TestGetDueReviewHandler(t *testing.T) {
 	testutils.CheckErr(t, err, "Failed to create upcoming test review")
 
 	// Test 1: Get only due reviews
-	url := fmt.Sprintf("/api/reviews?user_id=%d&status=due&page=1&per_page=10", userID)
+	url := fmt.Sprintf("/api/reviews?user_id=%s&status=due&page=1&per_page=10", userID.String())
 	req := httptest.NewRequest("GET", url, nil)
 	rr := httptest.NewRecorder()
 
@@ -457,7 +464,7 @@ func TestGetDueReviewHandler(t *testing.T) {
 	}
 
 	// Test 2: Get all reviews (both due and upcoming)
-	url = fmt.Sprintf("/api/reviews?user_id=%d&page=1&per_page=10", userID)
+	url = fmt.Sprintf("/api/reviews?user_id=%s&page=1&per_page=10", userID.String())
 	req = httptest.NewRequest("GET", url, nil)
 	rr = httptest.NewRecorder()
 

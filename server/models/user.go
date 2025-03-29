@@ -1,13 +1,15 @@
-package models 
+package models
 
 import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type User struct {
-    ID        int
+    ID        uuid.UUID
     Username  string
 	LeetcodeUsername string
     CreatedAt time.Time
@@ -24,13 +26,13 @@ func NewUserStore(db *sql.DB) *UserStore {
 func (s *UserStore) CreateUser(user *User) error {
     query := `
         INSERT INTO users
-        (username, leetcode_username, created_at)
-        VALUES ($1, $2, $3)
+        (username, leetcode_username)
+        VALUES ($1, $2)
         RETURNING id
     `
 
     // Use QueryRow with RETURNING to get the generated ID
-    err := s.db.QueryRow(query, user.Username, user.LeetcodeUsername, user.CreatedAt).Scan(&user.ID)
+    err := s.db.QueryRow(query, user.Username, user.LeetcodeUsername).Scan(&user.ID)
     if err != nil {
         return fmt.Errorf("error creating user: %v", err)
     }
@@ -38,7 +40,7 @@ func (s *UserStore) CreateUser(user *User) error {
     return nil
 }
 
-func (s *UserStore) GetUserByID(id int)(User, error) {
+func (s *UserStore) GetUserByID(id uuid.UUID)(User, error) {
 	var user User
 
 	query := `
@@ -52,7 +54,7 @@ func (s *UserStore) GetUserByID(id int)(User, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return User{}, fmt.Errorf("user with ID %d not found", id)
+			return User{}, fmt.Errorf("user with ID %s not found", id)
 		}
 
 		return User{}, fmt.Errorf("error fetching user: %v", err)
@@ -84,7 +86,7 @@ func (s *UserStore) GetUserByUsername(username string) (User, error) {
 	return user, nil
 }
 
-func (s *UserStore) CheckUserExistsByID(id int)(bool, error) {
+func (s *UserStore) CheckUserExistsByID(id uuid.UUID)(bool, error) {
     query := `
         SELECT EXISTS (
             SELECT 1

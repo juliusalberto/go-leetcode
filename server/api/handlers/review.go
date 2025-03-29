@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"go-leetcode/backend/api/middleware"
 	"go-leetcode/backend/models"
 	"go-leetcode/backend/pkg/response"
 	"net/http"
@@ -64,14 +65,15 @@ func NewReviewHandler(store *models.ReviewScheduleStore, submissionStore *models
 
 func (h *ReviewHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	// Parse user_id from query params
-	reqUserID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
-	if err != nil {
-		response.ValidationError(w, "user_id", "Invalid user_id format")
+	userIDStr := r.URL.Query().Get("user_id")
+	if userIDStr == "" {
+		response.ValidationError(w, "user_id", "Missing user_id parameter")
 		return
 	}
-
-	if reqUserID < 0 {
-		response.ValidationError(w, "user_id", "UserID should not be below 0")
+	
+	reqUserID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		response.ValidationError(w, "user_id", "Invalid user_id format")
 		return
 	}
 
@@ -226,7 +228,6 @@ func (h *ReviewHandler) ProcessSubmission(w http.ResponseWriter, r *http.Request
     var subReq struct{
         IsInternal          bool   `json:"is_internal"`
         LeetcodeSubmissionID string `json:"leetcode_submission_id,omitempty"`
-        UserID              int    `json:"user_id"`
         Title               string `json:"title"`
         TitleSlug           string `json:"title_slug"`
         SubmittedAt         string `json:"submitted_at"`
@@ -237,11 +238,13 @@ func (h *ReviewHandler) ProcessSubmission(w http.ResponseWriter, r *http.Request
         return
     }
     
-    // Validate required fields
-    if subReq.UserID <= 0 {
-        response.ValidationError(w, "user_id", "Valid user ID is required")
-        return
-    }
+    userID, err := middleware.GetUserUUIDFromContext(r.Context())
+	if err != nil {
+		fmt.Printf("Internal Server Error: Failed to get user UUID from context %v\n", err)
+		response.Error(w, http.StatusInternalServerError, "server_error", "Could not identify authenticated user")
+		return
+	}
+
     
     if subReq.TitleSlug == "" {
         response.ValidationError(w, "title_slug", "Problem title slug is required")
@@ -276,7 +279,7 @@ func (h *ReviewHandler) ProcessSubmission(w http.ResponseWriter, r *http.Request
     // Create the submission object
     sub := models.Submission{
         ID:          submissionID,
-        UserID:      subReq.UserID,
+        UserID:      userID,
         Title:       subReq.Title,
         TitleSlug:   subReq.TitleSlug,
         CreatedAt:   time.Now().UTC(),

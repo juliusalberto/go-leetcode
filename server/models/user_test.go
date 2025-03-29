@@ -5,6 +5,8 @@ import (
     "time"
     "go-leetcode/backend/internal/database"
     "go-leetcode/backend/internal/testutils"
+    
+    "github.com/google/uuid"
 )
 
 func setupTestUser(t *testing.T) (*UserStore, *database.TestDB, User) {
@@ -54,7 +56,7 @@ func TestGetUserByID(t *testing.T) {
     }
 
     // Test non-existent user
-    _, err = store.GetUserByID(9999)
+    _, err = store.GetUserByID(uuid.New())
     if err == nil {
         t.Error("Expected error when getting non-existent user, got nil")
     }
@@ -105,7 +107,7 @@ func TestCheckUserExistsByID(t *testing.T) {
         t.Error("User should exist but doesn't")
     }
 
-    exists, err = store.CheckUserExistsByID(9999)
+    exists, err = store.CheckUserExistsByID(uuid.New())
     testutils.CheckErr(t, err, "Error checking non-existent user")
     if exists {
         t.Error("User shouldn't exist but does")

@@ -7,6 +7,7 @@ export interface Review {
   status: 'due' | 'upcoming';
   next_review_at?: string;
   created_at: string;
+  title_slug: string;
 }
 
 interface FetchReviewsParams {

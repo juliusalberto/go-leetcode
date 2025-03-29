@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
 
 type Submission struct {
 	ID 			string			`json:"id"`
-	UserID		int				`json:"user_id"`
+	UserID		uuid.UUID		`json:"user_id"`
 	Title		string 			`json:"title"`
 	TitleSlug 	string			`json:"title_slug"`
 	SubmittedAt time.Time		`json:"submitted_at"`
@@ -69,9 +70,9 @@ func (s *SubmissionStore) GetSubmissionByID(id string)(Submission, error) {
 	return sub, nil 
 }
 
-func (s *SubmissionStore) GetSubmissionsByUserID(userID int)([]Submission, error) {
+func (s *SubmissionStore) GetSubmissionsByUserID(userID uuid.UUID)([]Submission, error) {
 	query := `
-		SELECT id, user_id, title, title_slug, submitted_at, created_at 
+		SELECT id, user_id, title, title_slug, submitted_at, created_at
 		FROM submissions WHERE user_id = $1
 	`
 	rows, err := s.db.Query(query, userID)

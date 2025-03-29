@@ -1,13 +1,12 @@
 package handlers
 
 import (
+	"go-leetcode/backend/api/middleware"
 	"go-leetcode/backend/models"
 	"go-leetcode/backend/pkg/response"
 	"net/http"
 	"strconv"
 	"strings"
-	
-	"github.com/google/uuid"
 )
 
 type ProblemStatusHandler struct {
@@ -65,8 +64,12 @@ func (h *ProblemStatusHandler) GetProblemsWithStatus(w http.ResponseWriter, r *h
 	// Calculate page number from offset and limit
 	page := (offset / limit) + 1
 
-	// TODO: Get actual user ID from context/auth middleware
-	userID := uuid.New() // Placeholder, replace with actual user ID retrieval from auth context
+	userID, err := middleware.GetUserUUIDFromContext(r.Context())
+
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to extract user UUID")
+		return
+	}
 
 	// Get filtered problems
 	problemsList, err := h.problemStore.ListProblems(options)

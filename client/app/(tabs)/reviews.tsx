@@ -9,7 +9,6 @@ import { MenuProvider, Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-
 import Toast from 'react-native-toast-message';
 
 export default function ReviewsScreen() {
-  const userId = 1; // Assuming user_id is 1
   const queryClient = useQueryClient();
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   
@@ -21,7 +20,7 @@ export default function ReviewsScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage
-  } = useReviews(userId);
+  } = useReviews();
 
   // Debug the data and error
   console.log("Reviews data:", data);
@@ -56,13 +55,10 @@ export default function ReviewsScreen() {
       // TODO: change the title_slug: review.title to review.title_slug (probably have to return the title slug as well)
       const submission: SubmissionRequest = {
         is_internal: true,
-        user_id: userId,
         title: review.title,
-        title_slug: review.title,
+        title_slug: review.title_slug,
         submitted_at: new Date().toISOString()
       }
-
-      console.log(submission)
       
       // Process submission
       await createSubmission(submission);
@@ -77,15 +73,15 @@ export default function ReviewsScreen() {
       // After animation completes, invalidate query
       setTimeout(() => {
         // Invalidate queries to refresh data
-        queryClient.invalidateQueries({ queryKey: ['recentReviews', userId] });
-        
-        // Remove from removing set
-        setRemovingIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(review.id);
-          return newSet;
-        });
-      }, 600);
+      queryClient.invalidateQueries({ queryKey: ['recentReviews'] });
+      
+      // Remove from removing set after animation
+      setRemovingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(review.id);
+        return newSet;
+      });
+      }, 500);
     } catch (error) {
       console.error('Error marking review as completed:', error);
       
@@ -101,7 +97,7 @@ export default function ReviewsScreen() {
         return newSet;
       });
     }
-  }, [userId, queryClient]);
+  }, [queryClient]);
   
   // Flatten pages data for FlatList and ensure we never have null/undefined pages
   const reviews: Review[] = data?.pages?.flatMap(page => page || []) || [];

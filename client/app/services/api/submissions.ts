@@ -2,7 +2,6 @@
 export interface SubmissionRequest {
   is_internal: boolean;
   leetcode_submission_id?: string;
-  user_id: number;
   title: string;
   title_slug: string;
   submitted_at: string;

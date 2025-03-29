@@ -65,17 +65,13 @@ func NewReviewHandler(store *models.ReviewScheduleStore, submissionStore *models
 
 func (h *ReviewHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	// Parse user_id from query params
-	userIDStr := r.URL.Query().Get("user_id")
-	if userIDStr == "" {
-		response.ValidationError(w, "user_id", "Missing user_id parameter")
-		return
-	}
-	
-	reqUserID, err := uuid.Parse(userIDStr)
+	userID, err := middleware.GetUserUUIDFromContext(r.Context())
 	if err != nil {
-		response.ValidationError(w, "user_id", "Invalid user_id format")
+		fmt.Printf("Internal Server Error: Failed to get user UUID from context in GetReviews: %v\n", err) // Log detailed error
+		response.Error(w, http.StatusInternalServerError, "server_error", "Could not identify authenticated user")
 		return
 	}
+
 
 	// Parse pagination parameters
 	page := 1
@@ -104,14 +100,14 @@ func (h *ReviewHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	switch status {
 	case "due":
 		// Get only due reviews with pagination
-		reviews, total, err = h.store.GetDueReviews(reqUserID, perPage, offset)
+		reviews, total, err = h.store.GetDueReviews(userID, perPage, offset)
 	case "upcoming":
 		// Get only upcoming reviews with pagination
-		reviews, total, err = h.store.GetUpcomingReviews(reqUserID, perPage, offset)
+		reviews, total, err = h.store.GetUpcomingReviews(userID, perPage, offset)
 	default:
 		// Get all reviews (both due and upcoming)
 		// For combined results, we need to handle pagination specially
-		dueReviews, dueTotal, dueErr := h.store.GetDueReviews(reqUserID, perPage, offset)
+		dueReviews, dueTotal, dueErr := h.store.GetDueReviews(userID, perPage, offset)
 		
 		if dueErr != nil {
 			err = dueErr
@@ -122,7 +118,7 @@ func (h *ReviewHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 			// If we haven't filled the page with due reviews, get some upcoming reviews
 			if len(dueReviews) < perPage {
 				remainingItems := perPage - len(dueReviews)
-				upcomingReviews, upcomingTotal, upcomingErr := h.store.GetUpcomingReviews(reqUserID, remainingItems, 0)
+				upcomingReviews, upcomingTotal, upcomingErr := h.store.GetUpcomingReviews(userID, remainingItems, 0)
 				
 				if upcomingErr != nil {
 					err = upcomingErr

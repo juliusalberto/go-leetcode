@@ -3,6 +3,8 @@ package middleware
 import (
 	"context"
 	"errors"
+	"fmt"
+
 	"github.com/google/uuid"
 )
 
@@ -16,6 +18,7 @@ const UserUUIDKey contextKey = "userUUID"
 func GetUserUUIDFromContext(ctx context.Context)(uuid.UUID, error) {
 	val := ctx.Value(UserUUIDKey)
 	userID, ok := val.(uuid.UUID)
+	fmt.Printf("GetUserUUIDFromContext: Value for key %v is: %v (Type: %T)\n", UserUUIDKey, val, val)
 
 	if !ok {
 		return uuid.Nil, errors.New("user UUID missing or invalid in context")

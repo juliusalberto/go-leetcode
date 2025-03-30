@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"go-leetcode/backend/pkg/response"
+	"go-leetcode/backend/internal/authutils"
 	"net/http"
 	"os"
 	"strings"
@@ -16,6 +17,7 @@ func AuthMiddleware() func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			var userUUID uuid.UUID
+			var email string
 			// var err error
 
 			// DEV OVERRIDE
@@ -37,7 +39,28 @@ func AuthMiddleware() func(next http.Handler) http.Handler {
 					return
 				}
 
-				// !! TODO: Implement REAL JWT Validation Here for production !!
+				tokenString := parts[1]
+
+				var err error
+				userUUID, email, err = authutils.ParseAndValidateToken(tokenString)
+
+				if err != nil {
+					fmt.Printf("JWT validation error: %v\n", err)
+
+					errMsg := "Invalid token"
+					errCode := "invalid_token"
+
+					if strings.Contains(err.Error(), "token_expired") {
+						errMsg = "Token has expired"
+						errCode = "token_expired"
+					} else if strings.Contains(err.Error(), "token_signature_invalid") {
+						errMsg = "Invalid token signature"
+						errCode = "token_signature_invalid"
+					}
+
+					response.Error(w, http.StatusUnauthorized, errCode, errMsg)
+					return
+				}
 			}
 
 			if userUUID == uuid.Nil {
@@ -47,6 +70,7 @@ func AuthMiddleware() func(next http.Handler) http.Handler {
 			}
 
 			ctx := context.WithValue(r.Context(), UserUUIDKey, userUUID)
+			ctx = context.WithValue(ctx, UserEmailKey, email)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

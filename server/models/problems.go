@@ -222,21 +222,14 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 
 	if len(options.Filter.Tags) > 0 {
 		tagConditions := []string{}
+		basePathFormat := `$[*] ? (@.slug == "%s")`
 
 		for _, tag := range options.Filter.Tags {
-			tagClause := fmt.Sprintf("topic_tags @> $%d::jsonb", paramPos)
+			jsonPathQuery := fmt.Sprintf(basePathFormat, tag)
+			tagClause := fmt.Sprintf("topic_tags @? ($%d)::jsonpath", paramPos)
 			tagConditions = append(tagConditions, tagClause)
 
-			tagStruct := []map[string]string{
-				{"slug": tag},
-			}
-
-			jsonb, err := json.Marshal(tagStruct)
-			if err != nil {
-				return ProblemList{}, err
-			}
-
-			params = append(params, string(jsonb))  // Convert byte slice to string
+			params = append(params, jsonPathQuery)  // Convert byte slice to string
 			paramPos++
 		}
 		whereClause += " AND (" + strings.Join(tagConditions, " OR ") + ")"

@@ -42,24 +42,31 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 		router.Get("/", userHandler.GetUser)
 	})
 
-	router.Route("/api/reviews", func(router chi.Router) {
-		router.Get("/", reviewHandler.GetReviews)
-		router.Put("/", reviewHandler.UpdateReviewSchedule)
-		router.Post("/", reviewHandler.CreateReview)
-		router.Post("/update-or-create", reviewHandler.UpdateOrCreateReview)
-		router.Post("/process-submission", reviewHandler.ProcessSubmission)
-	})
-
 	router.Route("/api/problems", func(router chi.Router) {
 		router.Get("/by-id", problemHandler.GetProblemByID)
 		router.Get("/by-frontend-id", problemHandler.GetProblemByFrontendID)
 		router.Get("/by-slug", problemHandler.GetProblemBySlug)
 		router.Get("/list", problemHandler.GetProblemList)
-		router.Get("/with-status", problemStatusHandler.GetProblemsWithStatus)
 	})
 
-	router.Get("/api/submissions", submissionHandler.GetSubmissions)
-	router.Post("/api/submissions", submissionHandler.CreateSubmission)
+	router.Group(func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware())
+
+		r.Route("/api/submissions", func(submissionRouter chi.Router) {
+			submissionRouter.Get("/api/submissions", submissionHandler.GetSubmissions)
+			submissionRouter.Post("/api/submissions", submissionHandler.CreateSubmission)
+		})
+
+		r.Route("/api/reviews", func(reviewsRouter chi.Router) {
+			reviewsRouter.Get("/", reviewHandler.GetReviews)
+			reviewsRouter.Put("/", reviewHandler.UpdateReviewSchedule)
+			reviewsRouter.Post("/", reviewHandler.CreateReview)
+			reviewsRouter.Post("/update-or-create", reviewHandler.UpdateOrCreateReview)
+			reviewsRouter.Post("/process-submission", reviewHandler.ProcessSubmission)
+		})
+
+		r.Get("/api/problems/with-status", problemStatusHandler.GetProblemsWithStatus)
+	})
 
 	// LeetCode API proxy endpoint
 	router.Post("/api/proxy/leetcode", handlers.LeetCodeProxyHandler)

@@ -72,7 +72,7 @@ export default function ProblemsScreen() {
   const debouncedSearch = useCallback(
     debounce((value: string) => {
       setSearchQuery(value);
-    }, 300),
+    }, 800),
     []
   );
 
@@ -83,7 +83,6 @@ export default function ProblemsScreen() {
     try {
       await createSubmission({
         is_internal: true,
-        user_id: 1, // Placeholder user ID
         title: problem.title,
         title_slug: problem.title_slug,
         submitted_at: new Date().toISOString(),
@@ -116,6 +115,7 @@ export default function ProblemsScreen() {
   if (!fontsLoaded) {
     return null;
   }
+  console.log('Problems data length:', data?.pages.flatMap(page => page.data)?.length, 'hasNextPage:', hasNextPage);
 
   return (
     <MenuProvider>
@@ -164,23 +164,25 @@ export default function ProblemsScreen() {
           <DropdownFilter
               label="Tag"
               selectedValue={tags}
-              options={['Array', 'String', 'Hash Table', 'Dynamic Programming', 'Math']}
+              options={['array', 'string', 'binary-tree', 'tree', 'math']}
               onSelect={(value) => setTags(value)}
           />
         </View>
 
         {/* Problems List */}
         <FlatList
-          data={data?.pages.flatMap((page) => page.data) || []}
+          data={data?.pages.flatMap((page) => page.data).filter(Boolean) || []}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-          keyExtractor={(item, index) => `${item.problem.id}-${item.problem.frontend_id}-${index}`}
-          renderItem={({ item }) => (
+          keyExtractor={(item, index) => `${item?.problem.id}-${item?.problem.frontend_id}-${index}`}
+          renderItem={({ item }) => {
+            return (
+            item ? (
             <ProblemCard
-              title={`${item.problem.frontend_id}. ${item.problem.title}`}
-              subtitle={item.problem.difficulty}
-              subtitleColor={difficultyColors[item.problem.difficulty] || '#8A9DC0'}
+              title={`${item?.problem.frontend_id}. ${item?.problem.title}`}
+              subtitle={item?.problem.difficulty}
+              subtitleColor={difficultyColors[item?.problem.difficulty] || '#8A9DC0'}
               iconName="checkmark-circle-outline"
-              completed={item.completed}
+              completed={item?.completed}
               onPress={() => handleProblemPress(item)}
               rightElement={
                 <Menu>
@@ -200,8 +202,8 @@ export default function ProblemsScreen() {
                   </MenuOptions>
                 </Menu>
               }
-            />
-          )}
+            />) : null
+          )}}
           onEndReached={() => hasNextPage && fetchNextPage()}
           onEndReachedThreshold={0.5}
           ListFooterComponent={() =>

@@ -12,13 +12,11 @@ export interface Review {
 
 interface FetchReviewsParams {
   pageParam?: number;
-  userId: number;
   limit?: number;
 }
 
-const fetchReviews = async ({ pageParam = 1, userId, limit = 10 }: FetchReviewsParams): Promise<Review[]> => {
+const fetchReviews = async ({ pageParam = 1, limit = 10 }: FetchReviewsParams): Promise<Review[]> => {
   const params = new URLSearchParams({
-    user_id: userId.toString(),
     status: "due",
     per_page: limit.toString(),
     page: pageParam.toString(),
@@ -39,12 +37,11 @@ const fetchReviews = async ({ pageParam = 1, userId, limit = 10 }: FetchReviewsP
   return data?.data ? data.data.slice(0, limit) : [];
 };
 
-export const useReviews = (userId: number) => {
-  return useInfiniteQuery<Review[], Error, InfiniteData<Review[]>, [string, number], number>({
-    queryKey: ['recentReviews', userId],
+export const useReviews = () => {
+  return useInfiniteQuery<Review[], Error, InfiniteData<Review[]>, [string], number>({
+    queryKey: ['recentReviews'],
     queryFn: ({ pageParam }) => fetchReviews({
       pageParam,
-      userId,
       limit: 10
     }),
     initialPageParam: 1,

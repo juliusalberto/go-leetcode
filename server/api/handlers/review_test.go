@@ -310,6 +310,7 @@ func TestUpdateOrCreateReview(t *testing.T) {
 
 func TestGetUpcomingReviewHandler(t *testing.T) {
 	handler, testDB, userID := setupReviewTest(t)
+	userUUIDKey := middleware.UserUUIDKey
 	defer testDB.Cleanup(t)
 
 	// Create test review with FSRS fields
@@ -330,9 +331,11 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 	err := handler.store.CreateReviewSchedule(&testReview)
 	testutils.CheckErr(t, err, "Failed to create test review")
 
-	url := fmt.Sprintf("/api/reviews?user_id=%s&status=upcoming&page=1&per_page=10", userID.String())
+	url := "/api/reviews?status=upcoming&page=1&per_page=10"
 
 	req := httptest.NewRequest("GET", url, nil)
+	ctx := context.WithValue(req.Context(), userUUIDKey, userID)
+	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
 	handler.GetReviews(rr, req)
@@ -381,6 +384,7 @@ func TestGetUpcomingReviewHandler(t *testing.T) {
 
 func TestGetDueReviewHandler(t *testing.T) {
 	handler, testDB, userID := setupReviewTest(t)
+	userUUIDKey := middleware.UserUUIDKey
 	defer testDB.Cleanup(t)
 
 	// Create a due test review with FSRS fields (nextReviewAt is in the past)
@@ -423,6 +427,8 @@ func TestGetDueReviewHandler(t *testing.T) {
 	url := fmt.Sprintf("/api/reviews?user_id=%s&status=due&page=1&per_page=10", userID.String())
 	req := httptest.NewRequest("GET", url, nil)
 	rr := httptest.NewRecorder()
+	ctx := context.WithValue(req.Context(), userUUIDKey, userID)
+	req = req.WithContext(ctx)
 
 	handler.GetReviews(rr, req)
 
@@ -464,8 +470,9 @@ func TestGetDueReviewHandler(t *testing.T) {
 	}
 
 	// Test 2: Get all reviews (both due and upcoming)
-	url = fmt.Sprintf("/api/reviews?user_id=%s&page=1&per_page=10", userID.String())
+	url = "/api/reviews?page=1&per_page=10"
 	req = httptest.NewRequest("GET", url, nil)
+	req = req.WithContext(ctx)
 	rr = httptest.NewRecorder()
 
 	handler.GetReviews(rr, req)

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"time"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
-var jwtSecret = []byte(os.Getenv("SUPABASE_JWT_SECRET"))
 
 type CustomClaims struct {
 	UserID 		string `json:"sub"`
@@ -17,16 +17,28 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
+func getJwtSecret() ([]byte, error) {
+	secret := os.Getenv("SUPABASE_JWT_SECRET")
+	if secret == "" {
+		return nil, errors.New("SUPABASE_JWT_SECRET environment variable not set or empty")
+	}
+	return []byte(secret), nil
+}
+
 func Initialize() {
 	isDevelopment := os.Getenv("GO_ENV") == "development"
-	if !isDevelopment && len(jwtSecret) == 0 {
-		panic("FATAL: SUPABASE_JWT_SECRET env not set or empty")
+	if !isDevelopment {
+		_, err := getJwtSecret()
+		if err != nil {
+			panic("FATAL: SUPABASE_JWT_SECRET env not set or empty")
+		}
 	}
 }
 
 func ParseAndValidateToken(tokenString string) (uuid.UUID, string, error) {
-	if len(jwtSecret) == 0 {
-		return uuid.Nil, "", errors.New("config_error: JWT secret configuration error")
+	jwtSecret, err := getJwtSecret()
+	if err != nil {
+		return uuid.Nil, "", fmt.Errorf("config_error: %w", err)
 	}
 
 	claims := &CustomClaims{}

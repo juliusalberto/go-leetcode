@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"go-leetcode/backend/api/routes"
+	"go-leetcode/backend/internal/authutils"
 	"go-leetcode/backend/internal/database"
 	"net/http"
 	"os"
@@ -57,6 +58,8 @@ func main() {
 
 	log.Info("Connected to database")
 	router := routes.SetupRoutes(db, logger)
+
+	authutils.Initialize()
 
 	srv := &http.Server{
 		Addr: 	":" + port,

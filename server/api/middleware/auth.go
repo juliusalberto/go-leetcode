@@ -34,7 +34,7 @@ func AuthMiddleware() func(next http.Handler) http.Handler {
 				}
 
 				parts := strings.Split(authHeader, " ")
-				if len(parts) != 2 || strings.ToLower(parts[0]) != "Bearer" {
+				if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
 					response.Error(w, http.StatusUnauthorized, "invalid_token_format", "Authorization format must be 'Bearer {token}'")
 					return
 				}

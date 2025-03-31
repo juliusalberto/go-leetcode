@@ -34,6 +34,7 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	submissionHandler := handlers.NewSubmissionHandler(submissionStore)
 	solutionStore := models.NewSolutionStore(db)
 	solutionHandler := handlers.NewSolutionHandler(solutionStore)
+	authStatusHandler := handlers.NewAuthStatusHandler(userStore)
 
 	router.Get("/health", handlers.HealthCheck)
 
@@ -57,6 +58,9 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 			submissionRouter.Post("/api/submissions", submissionHandler.CreateSubmission)
 		})
 
+		r.Get("/api/auth/status", authStatusHandler.GetUserAuthStatus)
+		r.Post("/api/users/profile", userHandler.CompleteProfile)
+
 		r.Route("/api/reviews", func(reviewsRouter chi.Router) {
 			reviewsRouter.Get("/", reviewHandler.GetReviews)
 			reviewsRouter.Put("/", reviewHandler.UpdateReviewSchedule)
@@ -72,10 +76,12 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	router.Post("/api/proxy/leetcode", handlers.LeetCodeProxyHandler)
 
 	router.Route("/api/solutions", func(router chi.Router) {
-		router.Post("/", solutionHandler.CreateSolution)
 		router.Get("/", solutionHandler.GetSolutions)
-		router.Put("/", solutionHandler.UpdateSolution)
-		router.Delete("/", solutionHandler.DeleteSolution)
+		
+		// probably wanna put this on auth
+		// router.Post("/", solutionHandler.CreateSolution) 
+		// router.Put("/", solutionHandler.UpdateSolution)
+		// router.Delete("/", solutionHandler.DeleteSolution)
 	})
 
 	return router

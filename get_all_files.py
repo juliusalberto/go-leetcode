@@ -9,9 +9,11 @@ def main():
     # Open the output file for writing (will overwrite if exists)
     with open(output_file, "w", encoding="utf-8") as outfile:
         # Traverse the current directory and subdirectories
-        for root, _, files in os.walk('.'):
+        for root, dir, files in os.walk('.'):
+            if "node_modules" in dir or ".expo" in dir:
+                continue
             for file in files:
-                if file.endswith(".go"):
+                if file.endswith(".ts") or file.endswith(".tsx"):
                     filepath = os.path.join(root, file)
                     try:
                         with open(filepath, "r", encoding="utf-8", errors="replace") as infile:

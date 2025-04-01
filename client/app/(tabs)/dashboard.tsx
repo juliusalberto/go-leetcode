@@ -3,11 +3,13 @@ import { View, Text, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator
 import { useFonts, Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { router } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
-import { formatTimeAgo } from '../services/leetcode/queries';
+import { formatTimeAgo } from '../../services/leetcode/queries';
 import { format, subDays } from 'date-fns';
 import InfoCard from '../../components/ui/InfoCard';
 import StatCard from '../../components/ui/StatCard';
-import { useRecentSubmissions, useStreakData, useUserProblemProfile } from '../services/leetcode/hooks';
+import { useRecentSubmissions, useStreakData, useUserProblemProfile } from '../../services/leetcode/hooks';
+import { useAuth } from '../../contexts/AuthContext';
+import { useReviews } from '../../services/api/reviews';
 
 export default function DashboardScreen() {
   const [fontsLoaded] = useFonts({
@@ -16,37 +18,52 @@ export default function DashboardScreen() {
     Roboto_700Bold,
   });
 
-  const username = 'elhazen'; // Example username - could come from a context or state
+  const { session, leetcodeUsername } = useAuth();
+  const username = leetcodeUsername || 'elhazen'; // Fallback to example if not available
   const screenWidth = Dimensions.get('window').width - 40;
   
   // Use Tanstack Query hooks
-  const { 
-    data: recentSubmissions = [], 
-    isLoading: submissionsLoading 
+  const {
+    data: recentSubmissions = [],
+    isLoading: submissionsLoading
   } = useRecentSubmissions(username);
   
-  const { 
-    data: streakDataResponse, 
-    isLoading: streakLoading 
+  const {
+    data: streakDataResponse,
+    isLoading: streakLoading
   } = useStreakData(username);
   
-  const { 
-    data: userProblemProfile = new Map<string, number>(), 
-    isLoading: profileLoading 
+  const {
+    data: userProblemProfile = new Map<string, number>(),
+    isLoading: profileLoading
   } = useUserProblemProfile(username);
+  
+  // Fetch due reviews count - this uses Tanstack Query caching
+  const {
+    data: reviewsData,
+    isLoading: reviewsLoading
+  } = useReviews();
+  
+  // Calculate number of due reviews from the cached data
+  const dueReviewsCount = reviewsData?.pages?.[0]?.length || 0;
 
   // Helper function to calculate streak
-  const calculateStreak = (dateToCountMap: Map<string, number>) => {
+  const calculateStreak = (dateToCountMap: Map<string, number> | undefined) => {
     let streak = 0;
     let currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
+    
+    // If dateToCountMap is undefined, return 0
+    if (!dateToCountMap) {
+      return streak;
+    }
     
     // Start with today and go backwards
     while (true) {
       const dateKey = format(subDays(currentDate, 1), 'yyyy-MM-dd');
       
       // Check if this date has submissions
-      if (dateToCountMap.has(dateKey) && dateToCountMap.get(dateKey) > 0) {
+      if (dateToCountMap.has(dateKey) && dateToCountMap.get(dateKey)! > 0) {
         streak++;
         // Move to previous day
         currentDate = subDays(currentDate, 1);
@@ -90,7 +107,7 @@ export default function DashboardScreen() {
   }
   
   // Combine loading states
-  const loading = submissionsLoading || streakLoading || profileLoading || !fontsLoaded;
+  const loading = submissionsLoading || streakLoading || profileLoading || reviewsLoading || !fontsLoaded;
   
   if (!fontsLoaded) {
     return null;
@@ -99,6 +116,11 @@ export default function DashboardScreen() {
   const handleProblemPress = (problem: { slug: string }) => {
     // Navigate to problem details
     router.push(`/problem/${problem.slug}`);
+  };
+  
+  const handleReviewsPress = () => {
+    // Navigate to reviews tab
+    router.push('/(tabs)/reviews');
   };
 
   return (
@@ -115,18 +137,20 @@ export default function DashboardScreen() {
 
       <ScrollView>
         {/* Current Streak */}
-        <InfoCard 
-          icon="flame-outline" 
-          title="Current Streak" 
-          subtitle={`${currentStreak} days`} 
+        <InfoCard
+          icon="flame-outline"
+          title="Current Streak"
+          subtitle={`${currentStreak} days`}
         />
 
-        {/* Upcoming Reviews */}
-        <InfoCard 
-          icon="calendar-outline" 
-          title="Upcoming Reviews" 
-          subtitle="5 reviews" 
-        />
+        {/* Upcoming Reviews - Clickable with actual count */}
+        <TouchableOpacity onPress={handleReviewsPress}>
+          <InfoCard
+            icon="calendar-outline"
+            title="Upcoming Reviews"
+            subtitle={`${dueReviewsCount} reviews`}
+          />
+        </TouchableOpacity>
 
         {/* Recently Attempted */}
         <Text 

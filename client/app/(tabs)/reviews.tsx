@@ -1,15 +1,16 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Animated, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useReviews, Review } from '../services/api/reviews';
+import { useReviews, Review } from '../../services/api/reviews';
 import ProblemCard from '../../components/ui/ProblemCard';
 import { useQueryClient } from '@tanstack/react-query';
-import { createSubmission, SubmissionRequest } from '../services/api/submissions';
+import { useSubmissionsApi, SubmissionRequest } from '../../services/api/submissions';
 import { MenuProvider, Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-native-popup-menu';
 import Toast from 'react-native-toast-message';
 
 export default function ReviewsScreen() {
   const queryClient = useQueryClient();
+  const submissionsApi = useSubmissionsApi();
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   
   // Fetch reviews using infinite query
@@ -61,7 +62,7 @@ export default function ReviewsScreen() {
       }
       
       // Process submission
-      await createSubmission(submission);
+      await submissionsApi.createSubmission(submission);
       
       // Show success toast
       Toast.show({

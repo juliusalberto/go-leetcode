@@ -9,10 +9,10 @@ import Toast from 'react-native-toast-message';
 import debounce from 'lodash/debounce';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
-// Import types and API function
-import { Problem, ProblemWithStatus } from '../services/leetcode/types';
-import { fetchProblemsWithStatus } from '../services/api/problems';
-import { createSubmission } from '../services/api/submissions';
+// Import types and API hooks
+import { Problem, ProblemWithStatus } from '../../services/leetcode/types';
+import { useProblemsApi } from '../../services/api/problems';
+import { useSubmissionsApi } from '../../services/api/submissions';
 import DropdownFilter from "../../components/ui/DropdownFilter"
 
 // Problem difficulty colors
@@ -25,6 +25,9 @@ const difficultyColors: Record<string, string> = {
 export default function ProblemsScreen() {
   console.log("ProblemsScreen rendering");
   const queryClient = useQueryClient();
+  const problemsApi = useProblemsApi();
+  const submissionsApi = useSubmissionsApi();
+  
   const [fontsLoaded] = useFonts({
     Roboto_400Regular,
     Roboto_500Medium,
@@ -49,7 +52,7 @@ export default function ProblemsScreen() {
   } = useInfiniteQuery<any>({
     queryKey: ['problems', { difficulty, tags, searchQuery }],
     queryFn: ({ pageParam = 0 }) =>
-      fetchProblemsWithStatus({
+      problemsApi.fetchProblemsWithStatus({
         difficulty: difficulty || undefined,
         tags: tags || undefined,
         search: searchQuery,
@@ -81,7 +84,7 @@ export default function ProblemsScreen() {
     const problem = problemWithStatus.problem;
     setSubmittingProblemId(problem.id);
     try {
-      await createSubmission({
+      await submissionsApi.createSubmission({
         is_internal: true,
         title: problem.title,
         title_slug: problem.title_slug,

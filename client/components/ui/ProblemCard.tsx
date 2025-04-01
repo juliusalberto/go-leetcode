@@ -26,7 +26,7 @@ export default function ProblemCard({
   rightElement
 }: ProblemCardProps) {
   return (
-    <View className="flex items-center bg-[#131C24] px-4 min-h-[80px] py-2">
+    <View className="flex items-center bg-[#131C24] px-4 min-h-[70px] max-h-[70px] py-2">
       <View className="flex-row items-center w-full h-full justify-between">
         <TouchableOpacity
           className="flex-row items-center flex-1 gap-4"

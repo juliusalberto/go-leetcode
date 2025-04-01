@@ -4,10 +4,13 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useFonts, Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import RNHighlighter from 'react-native-syntax-highlighter';
 
-// Import API services
-import { fetchProblemBySlug } from '../services/api/problems';
-import { fetchSolutionByID } from '../services/api/solutions';
+// Import API hooks
+import { useProblemsApi } from '../../services/api/problems';
+import { useSolutionsApi } from '../../services/api/solutions';
 
 export default function ProblemDetailScreen() {
   const { slug } = useLocalSearchParams();
@@ -15,6 +18,11 @@ export default function ProblemDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [solutions, setSolutions] = useState<Record<string, string>>({});
   const [selectedLanguage, setSelectedLanguage] = useState('python');
+  const [webViewHeight, setWebViewHeight] = useState(1);
+  
+  // Initialize API hooks
+  const problemsApi = useProblemsApi();
+  const solutionsApi = useSolutionsApi();
   
   const [fontsLoaded] = useFonts({
     Roboto_400Regular,
@@ -26,23 +34,14 @@ export default function ProblemDetailScreen() {
     const loadProblem = async () => {
       try {
         if (typeof slug === 'string') {
-          const problemData = await fetchProblemBySlug(slug);
-          
-          // Extract example inputs and outputs from the HTML content
-          if (!problemData.content) {
-            problemData.content = "";
-          }
-          const examples = extractExamples(problemData.content);
+          const problemData = await problemsApi.fetchProblemBySlug(slug);
           
           // Set problem data
-          setProblem({
-            ...problemData,
-            examples
-          });
+          setProblem(problemData);
           
           // Fetch solutions for this problem
           if (problemData.id) {
-            const solutionsData = await fetchSolutionByID(problemData.id.toString());
+            const solutionsData = await solutionsApi.fetchSolutionByID(problemData.id.toString());
             
             // Solutions data is already in the format of { language: code }
             setSolutions(solutionsData);
@@ -62,35 +61,8 @@ export default function ProblemDetailScreen() {
     };
     
     loadProblem();
-  }, [slug]);
+  }, []);
   
-  // Function to extract examples from HTML content
-  const extractExamples = (htmlContent: string): {input: string, output: string}[] => {
-    // This is a simple regex-based extraction - a proper HTML parser would be better
-    // but this works for our basic example format
-    const examples: {input: string, output: string}[] = [];
-    
-    // Extract blocks between <pre> tags
-    const preBlockRegex = /<pre>([\s\S]*?)<\/pre>/g;
-    let match;
-    
-    while ((match = preBlockRegex.exec(htmlContent)) !== null) {
-      const block = match[1];
-      
-      // Extract input and output from the block
-      const inputMatch = block.match(/<strong>Input:<\/strong>([\s\S]*?)<strong>Output:<\/strong>/);
-      const outputMatch = block.match(/<strong>Output:<\/strong>([\s\S]*?)(?:<strong>|$)/);
-      
-      if (inputMatch && outputMatch) {
-        examples.push({
-          input: inputMatch[1].trim(),
-          output: outputMatch[1].trim().split('<strong>Explanation:')[0].trim()
-        });
-      }
-    }
-    
-    return examples;
-  };
   
   const handleBack = () => {
     router.back();
@@ -206,9 +178,18 @@ export default function ProblemDetailScreen() {
                     `
                 }}
                 style={{ 
-                    height: 300,
-                    backgroundColor: '#131C24' 
+                  height: webViewHeight,
+                  backgroundColor: '#131C24' 
                 }}
+                onMessage={(event) => {
+                  setWebViewHeight(Number(event.nativeEvent.data));
+                }}
+                injectedJavaScript={`
+                  setTimeout(function() {
+                    window.ReactNativeWebView.postMessage(document.body.scrollHeight);
+                  }, 500);
+                  true;
+                `}
                 />
             )}
         </View>
@@ -264,12 +245,31 @@ export default function ProblemDetailScreen() {
           {/* Solution Code Block */}
           {solutions[selectedLanguage] ? (
             <View className="bg-[#1E2A3A] rounded-lg p-4 mb-8">
-              <Text 
-                className="text-[#F8F9FB] font-mono text-sm"
-                style={{ lineHeight: 24 }}
-              >
-                {solutions[selectedLanguage]}
-              </Text>
+              {Platform.OS === 'web' ? (
+                <SyntaxHighlighter
+                  language={selectedLanguage}
+                  style={atomOneDark}
+                  customStyle={{
+                    backgroundColor: '#1E2A3A',
+                    padding: 0,
+                    margin: 0,
+                    fontSize: 14,
+                    lineHeight: 24
+                  }}
+                >
+                  {solutions[selectedLanguage]}
+                </SyntaxHighlighter>
+              ) : (
+                <RNHighlighter
+                  language={selectedLanguage}
+                  fontSize={14}
+                  style={atomOneDark}
+                  customStyle={{ backgroundColor: '#1E2A3A' }}
+                  lineHeight={24}
+                >
+                  {solutions[selectedLanguage]}
+                </RNHighlighter>
+              )}
             </View>
           ) : (
             <Text 

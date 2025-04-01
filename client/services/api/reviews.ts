@@ -1,4 +1,6 @@
 import { useInfiniteQuery, InfiniteData } from '@tanstack/react-query';
+import { useFetchWithAuth } from '@/hooks/useFetchWithAuth';
+import { getApiUrl } from '../../utils/apiUrl';
 
 export interface Review {
   id: string;
@@ -15,29 +17,32 @@ interface FetchReviewsParams {
   limit?: number;
 }
 
-const fetchReviews = async ({ pageParam = 1, limit = 10 }: FetchReviewsParams): Promise<Review[]> => {
-  const params = new URLSearchParams({
-    status: "due",
-    per_page: limit.toString(),
-    page: pageParam.toString(),
-  });
-
-  const response = await fetch(`http://localhost:8080/api/reviews?${params.toString()}`, {
-    headers: { 'Content-Type': 'application/json' }
-  });
-
-  console.log(response)
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch reviews');
-  }
-
-  const data = await response.json();
-  // Add null check to handle cases where data.data might be null or undefined
-  return data?.data ? data.data.slice(0, limit) : [];
-};
+interface ReviewsResponse {
+  data: Review[];
+}
 
 export const useReviews = () => {
+  const { get } = useFetchWithAuth();
+
+  const fetchReviews = async ({ pageParam = 1, limit = 10 }: FetchReviewsParams): Promise<Review[]> => {
+    const params = new URLSearchParams({
+      status: "due",
+      per_page: limit.toString(),
+      page: pageParam.toString(),
+    });
+    
+    try {
+      const url = getApiUrl(`http://localhost:8080/api/reviews?${params.toString()}`);
+      const response = await get<ReviewsResponse>(url);
+      
+      // Add null check to handle cases where data.data might be null or undefined
+      return response?.data ? response.data.slice(0, limit) : [];
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      throw error;
+    }
+  };
+
   return useInfiniteQuery<Review[], Error, InfiniteData<Review[]>, [string], number>({
     queryKey: ['recentReviews'],
     queryFn: ({ pageParam }) => fetchReviews({

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"go-leetcode/backend/models"
 	"go-leetcode/backend/pkg/response"
 	"net/http"
@@ -73,7 +74,7 @@ func (h *ProblemHandler) GetProblemList(w http.ResponseWriter, r *http.Request) 
 
 	var tags []string
 	if tagsParam := r.URL.Query().Get("tags"); tagsParam != "" {
-		tags = strings.Split(tagsParam, "")
+		tags = strings.Split(tagsParam, ",")
 	}
 
 	var paidOnly *bool

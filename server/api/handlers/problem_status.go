@@ -39,7 +39,7 @@ func (h *ProblemStatusHandler) GetProblemsWithStatus(w http.ResponseWriter, r *h
 
 	var tags []string
 	if tagsParam := r.URL.Query().Get("tags"); tagsParam != "" {
-		tags = strings.Split(tagsParam, "")
+		tags = strings.Split(tagsParam, ",")
 	}
 
 	var paidOnly *bool

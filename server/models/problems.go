@@ -191,11 +191,14 @@ type ProblemList struct {
 
 func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, error) {
 	baseQuery := `
-		SELECT id, frontend_id, title, title_slug, difficulty, is_paid_only, content, topic_tags, 
-		example_testcases, similar_questions, created_at FROM problems WHERE 1 = 1
+		SELECT p.id, p.frontend_id, p.title, p.title_slug, p.difficulty, p.is_paid_only, p.content, p.topic_tags,
+		p.example_testcases, p.similar_questions, p.created_at
+		FROM problems p
+		LEFT JOIN problems_topic pt ON p.id = pt.problem_id
+		WHERE 1 = 1
 	`
 
-	countQuery := `SELECT COUNT(*) FROM problems WHERE 1 = 1`
+	countQuery := `SELECT COUNT(DISTINCT p.id) FROM problems p LEFT JOIN problems_topic pt ON p.id = pt.problem_id WHERE 1 = 1`
 
 	// and then we add the query based on the filter
 	var whereClause string
@@ -222,14 +225,10 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 
 	if len(options.Filter.Tags) > 0 {
 		tagConditions := []string{}
-		basePathFormat := `$[*] ? (@.slug == "%s")`
-
 		for _, tag := range options.Filter.Tags {
-			jsonPathQuery := fmt.Sprintf(basePathFormat, tag)
-			tagClause := fmt.Sprintf("topic_tags @? ($%d)::jsonpath", paramPos)
+			tagClause := fmt.Sprintf("pt.topic_slug = $%d", paramPos)
 			tagConditions = append(tagConditions, tagClause)
-
-			params = append(params, jsonPathQuery)  // Convert byte slice to string
+			params = append(params, tag)
 			paramPos++
 		}
 		whereClause += " AND (" + strings.Join(tagConditions, " OR ") + ")"
@@ -282,9 +281,12 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 	paramPos += 2
 
 	params = append(params, options.Limit, options.Offset)
+	groupByClause := ` GROUP BY p.id, p.frontend_id, p.title, p.title_slug, p.difficulty, p.is_paid_only, p.content, p.topic_tags, p.example_testcases, p.similar_questions, p.created_at `
 
-	query := baseQuery + whereClause + orderClause + limitOffsetClause
+	query := baseQuery + whereClause + groupByClause + orderClause + limitOffsetClause
 	countQuery = countQuery + whereClause
+	fmt.Println(query)
+	fmt.Println(countQuery)
 
 	var total int
 	err := s.db.QueryRow(countQuery, params[:paramPos - 3]...).Scan(&total)

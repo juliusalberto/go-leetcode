@@ -105,9 +105,13 @@ file_size_limit = "50MiB"
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+site_url = "http://127.0.0.1:8081"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+additional_redirect_urls = [
+  "http://localhost:8081",         # Common Expo Web dev URL (check your actual port)
+  "http://127.0.0.1:8081",       # Include if you sometimes access via IP
+  "com.spacecode://auth/callback" # The native deep link scheme
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # If disabled, the refresh token will never expire.
@@ -251,6 +255,18 @@ redirect_uri = ""
 url = ""
 # If enabled, the nonce check will be skipped. Required for local sign in with Google auth.
 skip_nonce_check = false
+
+[auth.external.google]
+enabled = true
+# Use the Client ID for your WEB APPLICATION credential from Google Cloud Console
+client_id = "27382405988-n3d4jq06hfocs82ld7grllghkg9nq8o1.apps.googleusercontent.com"
+# Use the Client SECRET for your WEB APPLICATION credential from Google Cloud Console
+secret = "env(GOOGLE_CLIENT_SECRET)"
+# IMPORTANT: Ensure this redirect URI matches what you use in your app
+# AND what is configured in your Google Cloud Console authorized redirect URIs
+# For local Supabase, it often defaults to http://localhost:54321/auth/v1/callback
+# Verify this with `supabase status` or Supabase docs for local dev.
+redirect_uri = "http://localhost:54321/auth/v1/callback" 
 
 # Use Firebase Auth as a third-party provider alongside Supabase Auth.
 [auth.third_party.firebase]

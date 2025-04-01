@@ -24,6 +24,16 @@ func AuthMiddleware() func(next http.Handler) http.Handler {
 			isDevelopment := os.Getenv("GO_ENV") == "development"
 			fmt.Println("I'm in the Auth Middleware!")
 
+			if isDevelopment {
+				// In development, ALWAYS log the auth header to debug
+				if authHeader != "" {
+					parts := strings.Split(authHeader, " ")
+					if len(parts) == 2 {
+						fmt.Println("DEBUG: Received token (first 20 chars):", parts[1][:20])
+					}
+				}
+			}
+
 			if authHeader == "" && isDevelopment {
 				fmt.Println("WARN: Dev Override activated - using a pregenerated UUID")
 				userUUID = uuid.MustParse("c7413699-cd58-4491-8db5-7de93ba1ac42")

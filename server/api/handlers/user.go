@@ -128,11 +128,18 @@ func (h *UserHandler) CompleteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
-	// create user profile in the DB
+	// Create user profile in the DB with the UUID from auth
 	user.ID = userID
 	user.Email = email
-	h.store.CreateUser(&user)
+	
+	// Use CreateUserByAuth which properly includes the ID field
+	if err := h.store.CreateUserByAuth(&user); err != nil {
+		fmt.Printf("ERROR: Failed to create user profile: %v\n", err)
+		response.Error(w, http.StatusInternalServerError, "db_error", "Failed to create user profile")
+		return
+	}
+	
+	fmt.Printf("SUCCESS: Created user profile for %s with username %s\n", userID, user.Username)
 
 	// return success response + user profile
 	response.JSON(w, http.StatusOK, user)

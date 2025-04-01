@@ -41,10 +41,26 @@ func ParseAndValidateToken(tokenString string) (uuid.UUID, string, error) {
 		return uuid.Nil, "", fmt.Errorf("config_error: %w", err)
 	}
 
+	// Print the first part of the JWT secret for debugging
+	fmt.Println("Using JWT secret (first 10 chars):", string(jwtSecret[:10])+"...")
+	fmt.Println("Token (first 20 chars):", tokenString[:20]+"...")
+	
+	// Try to parse the token without validation just to see the claims
+	parser := jwt.NewParser()
+	token, _, err := parser.ParseUnverified(tokenString, &CustomClaims{})
+	if err == nil && token != nil {
+		if claims, ok := token.Claims.(*CustomClaims); ok {
+			fmt.Println("DEBUG: Unverified token claims:")
+			fmt.Println("  - sub:", claims.UserID)
+			fmt.Println("  - email:", claims.Email)
+			fmt.Println("  - iss:", claims.Issuer)
+			fmt.Println("  - exp:", claims.ExpiresAt)
+		}
+	}
+
+	// Now do the real validation
 	claims := &CustomClaims{}
-
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token)(interface{}, error) {
-
+	token, err = jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token)(interface{}, error) {
 		// ensure only HMAC token is accepted
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])

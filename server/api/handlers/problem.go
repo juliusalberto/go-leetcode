@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"go-leetcode/backend/models"
 	"go-leetcode/backend/pkg/response"
 	"net/http"

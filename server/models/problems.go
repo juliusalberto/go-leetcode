@@ -33,6 +33,7 @@ type Problem struct {
 	ExampleTestcases string         `json:"example_testcases"`
 	SimilarQuestions []SimilarQuestion `json:"similar_questions"`
 	CreatedAt       time.Time       `json:"created_at"`
+	SolutionApproach string			`json:"solution_approach"`
 }
 
 type ProblemStore struct {

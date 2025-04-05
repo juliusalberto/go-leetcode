@@ -10,8 +10,11 @@ python = "^3.9"
 psycopg2-binary = "^2.9.10"
 requests = "^2.32.3"
 dotenv = "^0.9.9"
+openai = "^1.70.0"
+psycopg2 = "^2.9.10"
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+package-mode = false

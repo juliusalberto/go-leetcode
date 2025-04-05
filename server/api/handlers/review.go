@@ -172,7 +172,7 @@ func (h *ReviewHandler) UpdateReviewSchedule(w http.ResponseWriter, r *http.Requ
 
 	// Process the rating
 	fsrsScheduler := fsrs.NewFSRS(fsrs.DefaultParam())
-	now := time.Now()
+	now := time.Now().UTC()
 	result := fsrsScheduler.Next(fsrsCard, now, fsrs.Rating(req.Rating))
 
 	// Update the review

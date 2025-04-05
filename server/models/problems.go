@@ -290,8 +290,6 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions) (ProblemList, er
 
 	query := baseQuery + whereClause + groupByClause + orderClause + limitOffsetClause
 	countQuery = countQuery + whereClause
-	fmt.Println(query)
-	fmt.Println(countQuery)
 
 	var total int
 	err := s.db.QueryRow(countQuery, filterParams...).Scan(&total) // Use filterParams

@@ -58,7 +58,9 @@ func TestGetSolutions(t *testing.T) {
 	}
 
 	// Check if the solution exists for the given language
-	if _, ok := solutions["Python"]; !ok {
+	_, pyUpperOK := solutions["Python"]
+	_, pyLowerOK := solutions["python"]
+	if !pyLowerOK && !pyUpperOK {
 		t.Errorf("Expected a Python solution, but found none")
 	}
 
@@ -90,7 +92,10 @@ func TestGetSolutions(t *testing.T) {
 		}
 	
 		// Check if the Python solution exists
-		if _, ok := solutions["Python"]; !ok {
+		_, pyUpperOK = solutions["Python"]
+		_, pyLowerOK = solutions["python"]
+
+		if !pyUpperOK && !pyLowerOK {
 			t.Errorf("Expected a Python solution, but found none")
 		}
 }

@@ -62,6 +62,7 @@ jobs:
         # Seed test problems data
         PGPASSWORD=postgres psql -h localhost -U postgres -d leetcode_test -f migrations/seed_test_problems.sql
         PGPASSWORD=postgres psql -h localhost -U postgres -d leetcode_test -f migrations/seed_solutions.sql
+        PGPASSWORD=postgres psql -h localhost -U postgres -d leetcode_test -f migrations/seed_problems_topic.sql # Seed problems_topic data
 
     - name: Run tests
       working-directory: ./server

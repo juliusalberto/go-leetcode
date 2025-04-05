@@ -57,8 +57,14 @@ export function useFetchWithAuth() {
         throw new Error(`Request failed with status ${response.status}`);
       }
     }
+
+    // Handle 204 No Content specifically
+    if (response.status === 204) {
+      // Return undefined or null, cast to T to satisfy the return type
+      return undefined as T;
+    }
     
-    // Parse JSON response
+    // Parse JSON response for other successful responses
     const data = await response.json();
     return data;
   };

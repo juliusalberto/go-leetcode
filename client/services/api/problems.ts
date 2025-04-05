@@ -58,7 +58,7 @@ export const useProblemsApi = () => {
       };
       
       const queryString = createQueryParams(params);
-      const url = `http://localhost:8080/api/problems/list?${queryString}`;
+      const url = getApiUrl(`/api/problems/list?${queryString}`); // Use getApiUrl with relative path
       console.log("Fetching from URL:", url);
       
       // Public endpoint, specify skipAuth
@@ -99,7 +99,7 @@ export const useProblemsApi = () => {
       };
       
       const queryString = createQueryParams(params);
-      const url = getApiUrl(`http://localhost:8080/api/problems/with-status?${queryString}`);
+      const url = getApiUrl(`/api/problems/with-status?${queryString}`); // Use relative path
       console.log("Fetching from URL:", url);
       
       // This is an authenticated endpoint, token will be added automatically
@@ -110,8 +110,8 @@ export const useProblemsApi = () => {
     fetchProblemBySlug: async (slug: string): Promise<Problem> => {
       console.log("Fetching problem details for slug:", slug);
       
-      const url = getApiUrl(`http://localhost:8080/api/problems/by-slug?slug=${encodeURIComponent(slug)}`);
-      console.log("Fetching from URL:", url);
+            const url = getApiUrl(`/api/problems/by-slug?slug=${encodeURIComponent(slug)}`); // Use relative path
+            console.log("Fetching from URL:", url);
       
       // Public endpoint, specify skipAuth
       const response = await get<{ data: Problem }>(url, { skipAuth: true });

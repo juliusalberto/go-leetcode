@@ -15,7 +15,7 @@ interface CompleteProfileRequest {
 }
 
 export const fetchAuthStatus = async (token: string): Promise<AuthStatusResponse> => {
-    const url = getApiUrl(`http://localhost:8080/api/auth/status`); // Your backend status check endpoint
+    const url = getApiUrl(`/api/auth/status`); // Use relative path
     console.log("API: Fetching auth status from", url);
 
     try {
@@ -53,7 +53,7 @@ export const fetchAuthStatus = async (token: string): Promise<AuthStatusResponse
 };
 
 export const completeUserProfile = async (token: string, profileData: CompleteProfileRequest): Promise<AuthStatusResponse> => {
-    const url = getApiUrl(`http://localhost:8080/api/users/profile`); 
+    const url = getApiUrl(`/api/users/profile`); // Use relative path
     console.log("API: Completing user profile at", url);
 
     try {

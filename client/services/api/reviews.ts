@@ -32,7 +32,7 @@ export const useReviews = () => {
     });
     
     try {
-      const url = getApiUrl(`http://localhost:8080/api/reviews?${params.toString()}`);
+      const url = getApiUrl(`/api/reviews?${params.toString()}`); // Use relative path
       const response = await get<ReviewsResponse>(url);
       
       // Add null check to handle cases where data.data might be null or undefined

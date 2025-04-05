@@ -1,4 +1,5 @@
 import { useFetchWithAuth } from '@/hooks/useFetchWithAuth';
+import { getApiUrl } from '../../utils/apiUrl'; // Import getApiUrl
 
 // Submission API service
 export interface SubmissionRequest {
@@ -27,14 +28,16 @@ export const useSubmissionsApi = () => {
     // Create a submission with auth
     createSubmission: async (submission: SubmissionRequest): Promise<SubmissionResponse> => {
       console.log("Creating submission:", submission);
-      const url = 'http://localhost:8080/api/reviews/process-submission';
+      const url = getApiUrl('/api/reviews/process-submission'); // Use getApiUrl with relative path
       return post<SubmissionResponse>(url, submission);
     },
     
     // Get submissions for a user with auth
     getSubmissionsByUser: async (userId: number): Promise<SubmissionResponse[]> => {
       console.log("Fetching submissions for user ID:", userId);
-      const url = `http://localhost:8080/api/submissions?user_id=${userId}`;
+      // Construct the relative path including query parameters
+      const relativePath = `/api/submissions?user_id=${userId}`;
+      const url = getApiUrl(relativePath); // Use getApiUrl with relative path
       return get<SubmissionResponse[]>(url);
     }
   };

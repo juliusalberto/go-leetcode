@@ -4,8 +4,8 @@ import { getApiUrl } from '../../utils/apiUrl';
 export const leetCodeGraphQL = async (query: string, variables = {}) => {
     try {
       // Use our proxy endpoint instead of directly calling LeetCode API
-      const apiUrl = getApiUrl('http://localhost:8080/api/proxy/leetcode');
-      
+      const apiUrl = getApiUrl('/api/proxy/leetcode'); // Use relative path
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {

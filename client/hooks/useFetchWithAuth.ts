@@ -35,10 +35,10 @@ export function useFetchWithAuth() {
       requestHeaders['Content-Type'] = 'application/json';
     }
     
-    // Apply platform-specific URL conversion
-    const platformUrl = getApiUrl(url);
+    // The URL passed in should already be the complete, platform-adjusted URL
+    // const platformUrl = getApiUrl(url); // REMOVED: Redundant call
     
-    const response = await fetch(platformUrl, {
+    const response = await fetch(url, { // Use the url directly
       ...restOptions,
       headers: requestHeaders,
     });

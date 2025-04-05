@@ -21,6 +21,9 @@ const CodeHighlighter: React.FC<CodeHighlighterProps> = ({
   fontSize = 14, // Default font size
   lineHeight = 24, // Default line height
 }) => {
+  // Map 'c++' to 'cpp' for highlighter compatibility
+  const mappedLanguage = language?.toLowerCase() === 'c++' ? 'cpp' : language;
+
   const highlighterStyle = {
     ...atomOneDark, // Base style
     'hljs': { // Ensure background is transparent or matches container
@@ -38,7 +41,7 @@ const CodeHighlighter: React.FC<CodeHighlighterProps> = ({
     <View style={containerStyle}>
       {Platform.OS === 'web' ? (
         <WebSyntaxHighlighter
-          language={language}
+          language={mappedLanguage}
           style={highlighterStyle}
           customStyle={{ // Web customStyle applies to the <pre> tag
             margin: 0, // Remove default margins
@@ -57,7 +60,7 @@ const CodeHighlighter: React.FC<CodeHighlighterProps> = ({
         </WebSyntaxHighlighter>
       ) : (
         <RNSyntaxHighlighter
-          language={language}
+          language={mappedLanguage}
           fontSize={fontSize}
           style={highlighterStyle} // Pass the theme style
           customStyle={{ // Native customStyle applies to the Text component

@@ -21,8 +21,14 @@ interface ReviewsResponse {
   data: Review[];
 }
 
-export const useReviews = () => {
+// Define options type for the hook
+interface UseReviewsOptions {
+  enabled?: boolean;
+}
+
+export const useReviews = (options?: UseReviewsOptions) => { // Accept options
   const { get } = useFetchWithAuth();
+  const enabled = options?.enabled ?? true; // Default to true if not provided
 
   const fetchReviews = async ({ pageParam = 1, limit = 10 }: FetchReviewsParams): Promise<Review[]> => {
     const params = new URLSearchParams({
@@ -54,6 +60,7 @@ export const useReviews = () => {
       // Only fetch next page if we received a full page of results
       // This ensures we don't keep trying to fetch when there are no more results
       return lastPage && lastPage.length >= 10 ? allPages.length + 1 : undefined;
-    }
+    },
+    enabled: enabled, // <-- Pass the enabled option here
   });
 };

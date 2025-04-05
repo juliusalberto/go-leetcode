@@ -27,7 +27,8 @@ export default function FlashcardsScreen() {
   const [selectedLanguage, setSelectedLanguage] = useState('python');
   const [solutions, setSolutions] = useState<Record<string, string>>({});
   const [solutionsLoading, setSolutionsLoading] = useState(false);
-
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false); // <-- Keep loading state
+  
   const solutionsApi = useSolutionsApi();
   // Get infinite query properties
   const {
@@ -86,36 +87,45 @@ export default function FlashcardsScreen() {
 
   // Handle rating submission
   const handleRating = async (rating: 1 | 2 | 3 | 4) => {
-    if (!currentCard) return;
-    
-    const isLastCardInLoadedSet = currentCardIndex === flashcards.length - 1;
-
+    // Prevent submission if no card or already submitting
+    if (!currentCard || isSubmittingRating) return;
+ 
+    setIsSubmittingRating(true); // <-- Set loading state
+ 
     try {
-      // Submit the rating first
+      // Submit the rating (invalidation is now removed from the hook)
       await submitRating.mutateAsync({ review_id: currentCard.id, rating });
-
-      // Determine next action based on position and whether more pages exist/are loading
+ 
+      // --- Immediate UI Update ---
+      // Check if it's the last card in the currently loaded list
+      const isLastCardInLoadedSet = currentCardIndex === flashcards.length - 1;
+ 
       if (isLastCardInLoadedSet) {
-        // If it was the last loaded card, check if more are expected
-        if (hasNextPage || isFetchingNextPage) {
-          // More cards are coming or being fetched. Don't advance index yet.
-          // The list will update and potentially show the next card automatically.
-          // We might want to show a temporary loading state here if needed,
-          // but often the transition is fast enough.
-          console.log("Rated last loaded card, waiting for next page..."); // Optional debug log
-        } else {
-          // It was the last loaded card AND no more pages are expected. Review is complete.
+        // If it was the last loaded card, check if more pages might exist
+        // (based on hasNextPage flag from useInfiniteQuery)
+        if (!hasNextPage) {
+          // No more pages expected, review is complete for now
           setReviewCompleted(true);
+        } else {
+          // More pages might exist, but we don't advance index here.
+          // The proactive fetch useEffect (lines 49-57) should handle fetching.
+          // We might stay on the "last" card briefly until new data loads.
+          // Alternatively, could show a specific "fetching next batch..." message.
+          console.log("Rated last loaded card, waiting for proactive fetch...");
         }
       } else {
-        // Not the last card in the set, advance normally
+        // Not the last card in the set, advance index immediately
         setCurrentCardIndex(prev => prev + 1);
         setShowSolutionApproach(false); // Reset view state for next card
         setShowFullSolution(false);
       }
+      // --- End Immediate UI Update ---
+ 
     } catch (error) {
       console.error('Error submitting rating:', error);
-      Alert.alert("Error", "Failed to submit rating. Please try again."); // Added user feedback
+      Alert.alert("Error", "Failed to submit rating. Please try again.");
+    } finally {
+      setIsSubmittingRating(false); // <-- Reset loading state regardless of outcome
     }
   };
  
@@ -318,8 +328,8 @@ export default function FlashcardsScreen() {
                 </View>
               )}
 
-              {/* Rating Buttons */}
-              <RatingButtons onRate={handleRating} />
+              {/* Rating Buttons - Pass disabled state */}
+              <RatingButtons onRate={handleRating} disabled={isSubmittingRating} />
             </>
           )}
         </View>

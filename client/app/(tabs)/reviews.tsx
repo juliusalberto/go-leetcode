@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Animated, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../contexts/AuthContext'; // <-- Import useAuth
 import { useReviews, Review } from '../../services/api/reviews';
 import ProblemCard from '../../components/ui/ProblemCard';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,8 +13,9 @@ export default function ReviewsScreen() {
   const queryClient = useQueryClient();
   const submissionsApi = useSubmissionsApi();
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+  const { session } = useAuth(); // <-- Get session
   
-  // Fetch reviews using infinite query
+  // Fetch reviews using infinite query, enable only when session exists
   const {
     data,
     isLoading,
@@ -21,7 +23,7 @@ export default function ReviewsScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage
-  } = useReviews();
+  } = useReviews({ enabled: !!session }); // <-- Pass enabled option
 
   // Debug the data and error
   console.log("Reviews data:", data);

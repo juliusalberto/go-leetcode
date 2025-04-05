@@ -7,11 +7,12 @@ import { router } from 'expo-router';
 import { MenuProvider, Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-native-popup-menu';
 import Toast from 'react-native-toast-message';
 import debounce from 'lodash/debounce';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient, QueryKey, InfiniteData } from '@tanstack/react-query'; // Import QueryKey and InfiniteData types
 import { TOPIC_DISPLAY_NAMES, TOPIC_OPTIONS } from '../../constants/topics';
-
+import { useAuth } from '../../contexts/AuthContext'; // <-- Import useAuth
+ 
 // Import types and API hooks
-import { Problem, ProblemWithStatus } from '../../services/leetcode/types';
+import { Problem, ProblemWithStatus, ProblemWithStatusResponse } from '../../services/leetcode/types'; // Assuming ProblemWithStatusResponse is defined here, e.g., { data: ProblemWithStatus[], total?: number }
 import { useProblemsApi } from '../../services/api/problems';
 import { useSubmissionsApi } from '../../services/api/submissions';
 import { useDecks, useAddProblemToDeck } from '../../services/api/decks';
@@ -30,6 +31,7 @@ export default function ProblemsScreen() {
   const queryClient = useQueryClient();
   const problemsApi = useProblemsApi();
   const submissionsApi = useSubmissionsApi();
+  const { session } = useAuth(); // <-- Get session
   
   const [fontsLoaded] = useFonts({
     Roboto_400Regular,
@@ -56,29 +58,37 @@ export default function ProblemsScreen() {
     value: displayName
   }))
 
+  // Define the query key (ensure it matches the one in useInfiniteQuery)
+  const queryKey: QueryKey = ['problems', { difficulty, tags, searchQuery }];
+
   const {
     data,
     fetchNextPage,
     hasNextPage,
     isFetching,
     isFetchingNextPage,
-  } = useInfiniteQuery<any>({
-    queryKey: ['problems', { difficulty, tags, searchQuery }],
-    queryFn: ({ pageParam = 0 }) =>
+     // Type useInfiniteQuery with the *page* response type, error type, and the full InfiniteData structure for selection/mutation
+  } = useInfiniteQuery<ProblemWithStatusResponse, Error, InfiniteData<ProblemWithStatusResponse>, QueryKey, number>({
+    queryKey: queryKey,
+    queryFn: ({ pageParam = 0 }) => // pageParam is correctly inferred as number here
       problemsApi.fetchProblemsWithStatus({
         difficulty: difficulty || undefined,
         tags: tags || undefined,
         search: searchQuery,
-        offset: typeof pageParam === 'number' ? pageParam : 0,
+        offset: pageParam, // Use pageParam directly
         limit: 20,
       }),
-    getNextPageParam: (lastPage, pages) => {
-      if (lastPage?.data?.length === 20) {
-        return pages.length * 20;
-      }
-      return undefined;
+    getNextPageParam: (lastPage, allPages) => {
+       // lastPage is now correctly typed as ProblemWithStatusResponse
+       if (lastPage?.data?.length === 20) {
+         // Calculate the next offset based on the total number of items fetched across all pages
+         const totalFetched = allPages.reduce((acc, page) => acc + (page?.data?.length || 0), 0);
+         return totalFetched; // This becomes the next pageParam
+       }
+       return undefined; // No next page
     },
-    initialPageParam: 0,
+    initialPageParam: 0, // The initial pageParam (offset)
+    enabled: !!session,
   });
 
   // Submission state
@@ -99,33 +109,72 @@ export default function ProblemsScreen() {
   );
 
   // Handle adding a submission for a problem
+  // Modified handleAddSubmission with Optimistic Update
   const handleAddSubmission = async (problemWithStatus: ProblemWithStatus) => {
     const problem = problemWithStatus.problem;
-    setSubmittingProblemId(problem.id);
+    setSubmittingProblemId(problem.id); // Show loading indicator immediately
+
+    // 1. Cancel any outgoing refetches so they don't overwrite our optimistic update
+    await queryClient.cancelQueries({ queryKey: queryKey });
+
+    // 2. Snapshot the previous value
+    // 2. Snapshot the previous value using InfiniteData<PageResponseType>
+    const previousProblemsData = queryClient.getQueryData<InfiniteData<ProblemWithStatusResponse>>(queryKey);
+
+    // 3. Optimistically update to the new value
+    // 3. Optimistically update to the new value
+    if (previousProblemsData) {
+      const newData: InfiniteData<ProblemWithStatusResponse> = {
+        ...previousProblemsData,
+        // Map over the pages array within the InfiniteData structure
+        pages: previousProblemsData.pages.map(page => ({
+          ...page,
+          // Map over the data array within each page
+          data: page.data.map((item: ProblemWithStatus) => // item is ProblemWithStatus here
+            item.problem.id === problem.id
+              ? { ...item, completed: true } // Mark the specific problem as completed
+              : item
+          ),
+        })),
+      };
+      // Set the updated data structure back into the cache
+      queryClient.setQueryData<InfiniteData<ProblemWithStatusResponse>>(queryKey, newData);
+    }
+
     try {
+      // 4. Make the API call
       await submissionsApi.createSubmission({
         is_internal: true,
         title: problem.title,
         title_slug: problem.title_slug,
         submitted_at: new Date().toISOString(),
       });
-      
-      // Invalidate query to refresh data from server
-      queryClient.invalidateQueries({ queryKey: ['problems'] });
-      
+
+      // 5. On success: Optionally invalidate to refetch in the background and ensure consistency
+      // queryClient.invalidateQueries({ queryKey }); // You might keep this commented out if optimistic update is enough
+
       Toast.show({
         type: 'success',
         text1: 'Submission Added',
         text2: `Successfully recorded submission for "${problem.title}"`,
       });
+
     } catch (error) {
       console.error('Error adding submission:', error);
+
+      // 6. On error: Rollback to the previous data
+      // 6. On error: Rollback to the previous data
+      if (previousProblemsData) { // Rollback using the snapshot
+        queryClient.setQueryData<InfiniteData<ProblemWithStatusResponse>>(queryKey, previousProblemsData);
+      }
+
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: 'Failed to add submission',
+        text2: 'Failed to add submission. Reverted changes.', // Inform user about rollback
       });
     } finally {
+      // 7. Always clear the loading indicator
       setSubmittingProblemId(null);
     }
   };
@@ -137,7 +186,8 @@ export default function ProblemsScreen() {
   if (!fontsLoaded) {
     return null;
   }
-  console.log('Problems data length:', data?.pages.flatMap(page => page.data)?.length, 'hasNextPage:', hasNextPage);
+  // Access data correctly using the InfiniteData structure
+  console.log('Problems data length:', data?.pages.flatMap(page => page.data)?.length ?? 0, 'hasNextPage:', hasNextPage);
 
   return (
     <MenuProvider>
@@ -192,7 +242,8 @@ export default function ProblemsScreen() {
 
         {/* Problems List */}
         <FlatList
-          data={data?.pages.flatMap((page) => page.data).filter(Boolean) || []}
+          // Flatten pages data and filter out potential null/undefined items if necessary
+          data={data?.pages.flatMap((page) => page.data).filter((item): item is ProblemWithStatus => !!item) || []}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           keyExtractor={(item, index) => `${item?.problem.id}-${item?.problem.frontend_id}-${index}`}
           renderItem={({ item }) => {

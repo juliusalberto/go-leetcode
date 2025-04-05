@@ -3,9 +3,10 @@ import { View, Text, TouchableOpacity } from 'react-native';
 
 interface RatingButtonProps {
   onRate: (rating: 1 | 2 | 3 | 4) => void;
+  disabled?: boolean; // <-- Add optional disabled prop
 }
-
-const RatingButtons: React.FC<RatingButtonProps> = ({ onRate }) => {
+ 
+const RatingButtons: React.FC<RatingButtonProps> = ({ onRate, disabled = false }) => { // <-- Destructure and default
   const ratings = [
     { label: 'Again', value: 1, textColor: 'text-red-500', borderColor: 'border-red-500', hoverBg: 'hover:bg-red-500/10', activeBg: 'active:bg-red-500/20' },
     { label: 'Hard', value: 2, textColor: 'text-orange-500', borderColor: 'border-orange-500', hoverBg: 'hover:bg-orange-500/10', activeBg: 'active:bg-orange-500/20' },
@@ -31,9 +32,11 @@ const RatingButtons: React.FC<RatingButtonProps> = ({ onRate }) => {
               items-center justify-center 
               transition-colors duration-150 ease-in-out 
               ${rating.hoverBg} ${rating.activeBg}
+              ${disabled ? 'opacity-50' : ''} // <-- Add opacity when disabled
             `}
             onPress={() => onRate(rating.value)}
-            activeOpacity={0.8} // Control opacity on press
+            disabled={disabled} // <-- Pass disabled prop to TouchableOpacity
+            activeOpacity={disabled ? 1 : 0.8} // <-- Adjust active opacity when disabled
           >
             <Text className={`${rating.textColor} text-center font-medium text-sm`}> {/* Adjusted text size */}
               {rating.label}

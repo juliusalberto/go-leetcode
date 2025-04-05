@@ -93,9 +93,8 @@ export const useSubmitFlashcardRating = () => {
         review_id: rating.review_id,
         rating: rating.rating
       });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['flashcardReviews'] });
     }
+    // REMOVED: onSuccess invalidation to prevent refetching after every rating.
+    // We will rely on fetchNextPage triggered by the component when needed.
   });
 };

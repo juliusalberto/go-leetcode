@@ -26,13 +26,7 @@ export default function ProblemDetailScreen() {
   
   // Removed fontsLoaded state and useFonts hook
 
-  const languageMap: Record<string, string> = {
-    "C++": "cpp",
-    "JavaScript": "javascript",
-    "Python": "python",
-    "Java": "java",
-    "C#": "csharp",
-  };
+  // Removed languageMap as CodeHighlighter might handle common names or selectedLanguage holds the slug
   
   useEffect(() => {
     const loadProblem = async () => {
@@ -170,7 +164,7 @@ export default function ProblemDetailScreen() {
           {/* Solution Code Block */}
           {solutions[selectedLanguage] ? (
             <CodeHighlighter
-              language={languageMap[selectedLanguage] || selectedLanguage.toLowerCase()}
+              language={selectedLanguage.toLowerCase()} // Pass selected language directly (lowercase)
               style={{ marginBottom: 24 }} // Adjusted margin
             >
               {solutions[selectedLanguage]}
@@ -179,7 +173,7 @@ export default function ProblemDetailScreen() {
             // Container for "Not Available" message for consistent spacing
             <View className="bg-[#1E2A3A] rounded-lg p-4 mb-6">
               <Text className="text-[#ADBAC7] text-sm"> {/* Adjusted style */}
-                Solution code not available for {languageMap[selectedLanguage] || selectedLanguage}.
+                Solution code not available for {selectedLanguage}.
               </Text>
             </View>
           )}

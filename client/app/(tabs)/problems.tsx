@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Modal } from 'react-native';
 import { useFonts, Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { Ionicons } from '@expo/vector-icons';
 import ProblemCard from '../../components/ui/ProblemCard';
@@ -8,12 +8,15 @@ import { MenuProvider, Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-
 import Toast from 'react-native-toast-message';
 import debounce from 'lodash/debounce';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { TOPIC_DISPLAY_NAMES, TOPIC_OPTIONS } from '../../constants/topics';
 
 // Import types and API hooks
 import { Problem, ProblemWithStatus } from '../../services/leetcode/types';
 import { useProblemsApi } from '../../services/api/problems';
 import { useSubmissionsApi } from '../../services/api/submissions';
-import DropdownFilter from "../../components/ui/DropdownFilter"
+import { useDecks, useAddProblemToDeck } from '../../services/api/decks';
+import DropdownFilter from "../../components/ui/DropdownFilter";
+import ScreenHeader from '../../components/ui/ScreenHeader'; // Import the new header
 
 // Problem difficulty colors
 const difficultyColors: Record<string, string> = {
@@ -43,6 +46,16 @@ export default function ProblemsScreen() {
   const [difficulty, setDifficulty] = useState<string | null>(null);
   const [tags, setTags] = useState<string | null>(null);
 
+  const structuredTagOptions = TOPIC_DISPLAY_NAMES.map(displayName => ({
+    label: displayName,
+    value: TOPIC_OPTIONS[displayName as keyof typeof TOPIC_OPTIONS]
+  }));
+
+  const structuredDiffOptions = ["Easy", "Medium", "Hard"].map(displayName => ({
+    label: displayName,
+    value: displayName
+  }))
+
   const {
     data,
     fetchNextPage,
@@ -70,6 +83,12 @@ export default function ProblemsScreen() {
 
   // Submission state
   const [submittingProblemId, setSubmittingProblemId] = useState<number | null>(null);
+  
+  // Deck modal state
+  const [showDeckModal, setShowDeckModal] = useState(false);
+  const [selectedProblem, setSelectedProblem] = useState<ProblemWithStatus | null>(null);
+  const { data: decksData } = useDecks();
+  const addProblemToDeck = useAddProblemToDeck();
 
   // Create debounced search function using lodash
   const debouncedSearch = useCallback(
@@ -123,15 +142,12 @@ export default function ProblemsScreen() {
   return (
     <MenuProvider>
       <View className="flex-1 bg-[#131C24]">
-        {/* Header */}
-        <View className="flex items-center bg-[#131C24] p-4 pb-2 justify-between flex-row">
-          <Text 
-            className="text-[#F8F9FB] text-lg font-bold leading-tight flex-1 text-center"
-            style={{ fontFamily: 'Roboto_700Bold' }}
-          >
-            Problem Library
-          </Text>
-        </View>
+        {/* Use the reusable ScreenHeader component */}
+        <ScreenHeader
+          title="Problem Library"
+          showBackButton={false}
+          centerTitle={true}
+        />
 
         {/* Search Bar */}
         <View className="px-4 py-3">
@@ -160,15 +176,17 @@ export default function ProblemsScreen() {
           <DropdownFilter
               label="Difficulty"
               selectedValue={difficulty}
-              options={['Easy', 'Medium', 'Hard']}
+              options={structuredDiffOptions}
               onSelect={(value) => setDifficulty(value)}
           />
 
           <DropdownFilter
-              label="Tag"
-              selectedValue={tags}
-              options={['array', 'string', 'binary-tree', 'tree', 'math']}
-              onSelect={(value) => setTags(value)}
+            label="Tag"
+            selectedValue={tags}
+            options={structuredTagOptions}
+            onSelect={(selectedSlug: string | null) => {
+              setTags(selectedSlug); 
+            }}
           />
         </View>
 
@@ -202,6 +220,12 @@ export default function ProblemsScreen() {
                     <MenuOption style={{ borderRadius: 100 }} onSelect={() => handleAddSubmission(item)}>
                       <Text className={'flex items-center justify-center p-2 text-black'}>Add Submission</Text>
                     </MenuOption>
+                    <MenuOption style={{ borderRadius: 100 }} onSelect={() => {
+                      setSelectedProblem(item);
+                      setShowDeckModal(true);
+                    }}>
+                      <Text className={'flex items-center justify-center p-2 text-black'}>Add to Deck</Text>
+                    </MenuOption>
                   </MenuOptions>
                 </Menu>
               }
@@ -224,6 +248,97 @@ export default function ProblemsScreen() {
             </View>
           )}
         />
+        
+        {/* Deck Selection Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showDeckModal}
+          onRequestClose={() => setShowDeckModal(false)}
+        >
+          <View className="flex-1 justify-end bg-black/50">
+            <View className="bg-[#1E2A3A] rounded-t-xl p-6 max-h-[70%]">
+              <View className="flex-row justify-between items-center mb-4">
+                <Text
+                  className="text-[#F8F9FB] text-xl font-bold"
+                  style={{ fontFamily: 'Roboto_700Bold' }}
+                >
+                  Add to Deck
+                </Text>
+                <TouchableOpacity onPress={() => setShowDeckModal(false)}>
+                  <Ionicons name="close" size={24} color="#8A9DC0" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text
+                className="text-[#8A9DC0] mb-4"
+                style={{ fontFamily: 'Roboto_400Regular' }}
+              >
+                Select a deck to add "{selectedProblem?.problem.title}"
+              </Text>
+              
+              <FlatList
+                data={decksData?.user_decks || []}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item: deck }) => (
+                  <TouchableOpacity
+                    className="bg-[#29374C] p-4 rounded-lg mb-2 flex-row justify-between items-center"
+                    onPress={() => {
+                      if (selectedProblem) {
+                        addProblemToDeck.mutate({
+                          deckId: deck.id,
+                          problemId: selectedProblem.problem.id
+                        }, {
+                          onSuccess: () => {
+                            Toast.show({
+                              type: 'success',
+                              text1: 'Success',
+                              text2: `Added to "${deck.name}" deck`,
+                            });
+                            setShowDeckModal(false);
+                          },
+                          onError: () => {
+                            Toast.show({
+                              type: 'error',
+                              text1: 'Error',
+                              text2: 'Failed to add problem to deck',
+                            });
+                          }
+                        });
+                      }
+                    }}
+                  >
+                    <View>
+                      <Text
+                        className="text-[#F8F9FB] text-lg font-medium"
+                        style={{ fontFamily: 'Roboto_500Medium' }}
+                      >
+                        {deck.name}
+                      </Text>
+                      <Text
+                        className="text-[#8A9DC0]"
+                        style={{ fontFamily: 'Roboto_400Regular' }}
+                      >
+                        {deck.problem_count || 0} problems
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#8A9DC0" />
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <View className="items-center p-4">
+                    <Text
+                      className="text-[#8A9DC0] text-center"
+                      style={{ fontFamily: 'Roboto_400Regular' }}
+                    >
+                      You don't have any decks yet. Create one first.
+                    </Text>
+                  </View>
+                }
+              />
+            </View>
+          </View>
+        </Modal>
       </View>
     </MenuProvider>
   );

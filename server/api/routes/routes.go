@@ -26,6 +26,8 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	reviewStore := models.NewReviewScheduleStore(db)
 	problemStore := models.NewProblemStore(db)
 	submissionStore := models.NewSubmissionStore(db)
+	deckStore := models.NewDeckStore(db)
+	flashcardStore := models.NewFlashcardReviewStore(db)
 
 	userHandler := handlers.NewUserHandler(userStore)
 	reviewHandler := handlers.NewReviewHandler(reviewStore, submissionStore)
@@ -35,6 +37,9 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	solutionStore := models.NewSolutionStore(db)
 	solutionHandler := handlers.NewSolutionHandler(solutionStore)
 	authStatusHandler := handlers.NewAuthStatusHandler(userStore)
+	deckHandler := handlers.NewDeckHandler(deckStore, problemStore, flashcardStore)
+	flashcardHandler := handlers.NewFlashcardHandler(flashcardStore, problemStore, deckStore)
+
 
 	router.Get("/health", handlers.HealthCheck)
 
@@ -70,6 +75,23 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 		})
 
 		r.Get("/api/problems/with-status", problemStatusHandler.GetProblemsWithStatus)
+
+		r.Route("/api/decks", func(deckRouter chi.Router) {
+			deckRouter.Get("/", deckHandler.GetAllDecks)
+			deckRouter.Post("/", deckHandler.CreateDeck)
+			deckRouter.Put("/{id}", deckHandler.UpdateDeck)
+			deckRouter.Delete("/{id}", deckHandler.DeleteDeck)
+			deckRouter.Get("/{id}/problems", deckHandler.GetDeckProblems)
+			deckRouter.Post("/{id}/problems", deckHandler.AddProblemToDeckAndCreateFlashcard)
+			deckRouter.Delete("/{id}/problems/{problem_id}", deckHandler.RemoveProblemFromDeck)
+			deckRouter.Post("/{id}/start-practice", deckHandler.StartPracticePublicDeck) // Add route for starting practice
+		})
+
+		r.Route("/api/flashcards", func(flashcardRouter chi.Router) {
+			flashcardRouter.Get("/reviews", flashcardHandler.GetFlashcardReviews)
+			flashcardRouter.Post("/reviews", flashcardHandler.SubmitFlashcardReview)
+			flashcardRouter.Post("/decks/{deck_id}", flashcardHandler.AddDeckToFlashcards)
+		})
 	})
 
 	// LeetCode API proxy endpoint
@@ -79,10 +101,12 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 		router.Get("/", solutionHandler.GetSolutions)
 		
 		// probably wanna put this on auth
-		// router.Post("/", solutionHandler.CreateSolution) 
+		// router.Post("/", solutionHandler.CreateSolution)
 		// router.Put("/", solutionHandler.UpdateSolution)
 		// router.Delete("/", solutionHandler.DeleteSolution)
 	})
+
+
 
 	return router
 }

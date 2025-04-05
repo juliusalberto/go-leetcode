@@ -100,6 +100,8 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="problem/[slug]" options={{ headerShown: false }} />
             <Stack.Screen name="complete-profile" options={{ headerShown: false }} />
+            <Stack.Screen name="deck/[id]" options={{ headerShown: false}}/>
+            <Stack.Screen name="flashcards" options={{ headerShown: false}}/>
             <Stack.Screen name="+not-found" />
           </Stack>
           <StatusBar style="auto" />

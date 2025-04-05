@@ -10,6 +10,7 @@ import StatCard from '../../components/ui/StatCard';
 import { useRecentSubmissions, useStreakData, useUserProblemProfile } from '../../services/leetcode/hooks';
 import { useAuth } from '../../contexts/AuthContext';
 import { useReviews } from '../../services/api/reviews';
+import ScreenHeader from '../../components/ui/ScreenHeader'; // Import the new header
 
 export default function DashboardScreen() {
   const [fontsLoaded] = useFonts({
@@ -122,20 +123,17 @@ export default function DashboardScreen() {
     // Navigate to reviews tab
     router.push('/(tabs)/reviews');
   };
+return (
+  <View className="flex-1 bg-[#131C24]">
+    {/* Use the reusable ScreenHeader component */}
+    <ScreenHeader
+      title="Dashboard"
+      showBackButton={false}
+      centerTitle={true}
+    />
 
-  return (
-    <View className="flex-1 bg-[#131C24]">
-      {/* Header */}
-      <View className="flex-row items-center bg-[#131C24] p-4 pb-2 justify-between">
-        <Text 
-          className="text-[#F8F9FB] text-lg font-bold leading-tight flex-1 text-center px-12"
-          style={{ fontFamily: 'Roboto_700Bold', letterSpacing: -0.24 }}
-        >
-          Dashboard
-        </Text>
-      </View>
-
-      <ScrollView>
+    <ScrollView>
+      {/* Current Streak */}
         {/* Current Streak */}
         <InfoCard
           icon="flame-outline"

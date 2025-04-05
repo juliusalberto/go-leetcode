@@ -7,6 +7,7 @@ interface ProblemCardProps {
   title: string;
   subtitle: string;
   subtitleColor?: string;
+  backgroundColor?: string; // Add backgroundColor prop
   iconName?: keyof typeof Ionicons.glyphMap;
   completed?: boolean;
   onPress?: () => void;
@@ -16,17 +17,22 @@ interface ProblemCardProps {
 /**
  * A reusable card component for displaying problems and reviews
  */
-export default function ProblemCard({
+function ProblemCard({
   title,
   subtitle,
   subtitleColor = "#8A9DC0",
+  backgroundColor = "#131C24", // Default back to the original darker background
   iconName = "checkmark-circle-outline",
   completed = false,
   onPress,
   rightElement
 }: ProblemCardProps) {
   return (
-    <View className="flex items-center bg-[#131C24] px-4 min-h-[70px] max-h-[70px] py-2">
+    // Use the backgroundColor prop, applying the default if not provided
+    <View
+      className="flex items-center px-4 min-h-[70px] max-h-[70px] py-2"
+      style={{ backgroundColor: backgroundColor }} // Apply background color via style
+    >
       <View className="flex-row items-center w-full h-full justify-between">
         <TouchableOpacity
           className="flex-row items-center flex-1 gap-4"
@@ -55,10 +61,10 @@ export default function ProblemCard({
               {subtitle}
             </Text>
           </View>
-        </TouchableOpacity>
-        
-        {rightElement}
+        </TouchableOpacity>{rightElement}
       </View>
     </View>
   );
 }
+
+export default React.memo(ProblemCard);

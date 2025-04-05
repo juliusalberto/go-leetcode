@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TouchableOpacity, View, TextInput, KeyboardAvoidingView, Platform, Text } from 'react-native';
 import { useFonts, Roboto_400Regular, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { router } from 'expo-router';
+import Button from '../components/ui/Button'; // Import the Button component
 
 export default function UsernameInputScreen() {
   const [username, setUsername] = useState('');
@@ -66,22 +67,23 @@ export default function UsernameInputScreen() {
             style={{ fontFamily: 'Roboto_400Regular', fontSize: 16 }}
           />
         </View>
-        
         {/* Start Button */}
         <View className="px-4 py-3">
-          <TouchableOpacity 
-            className="h-12 bg-[#F4C753] rounded-xl justify-center items-center"
+          <Button
+            title="Start"
             onPress={handleStart}
-          >
-            <Text 
-              className="text-[#141C24] text-base font-bold"
-              style={{ fontFamily: 'Roboto_700Bold', letterSpacing: 0.24 }}
-            >
-              Start
-            </Text>
-          </TouchableOpacity>
+            // Override default styles using className and textStyle
+            className="bg-[#F4C753] h-12 rounded-xl" // Keep original background, height, radius
+            textStyle={{
+              color: '#141C24', // Original text color
+              fontSize: 16, // Original text size (approximated from text-base)
+              fontFamily: 'Roboto_700Bold',
+              letterSpacing: 0.24
+            }}
+          />
         </View>
         
+        {/* Bottom spacer */}
         {/* Bottom spacer */}
         <View className="h-5 bg-[#131C24]" />
       </View>

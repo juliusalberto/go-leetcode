@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Platform, View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useFonts, Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
+// Removed useFonts import as custom fonts are not explicitly applied via style prop anymore
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
-import RNHighlighter from 'react-native-syntax-highlighter';
+import CodeHighlighter from '../../components/CodeHighlighter';
+import ScreenHeader from '../../components/ui/ScreenHeader'; // Import the new header
+import LanguageTabs from '../../components/ui/LanguageTabs'; // Import LanguageTabs
 
 // Import API hooks
 import { useProblemsApi } from '../../services/api/problems';
@@ -24,11 +24,15 @@ export default function ProblemDetailScreen() {
   const problemsApi = useProblemsApi();
   const solutionsApi = useSolutionsApi();
   
-  const [fontsLoaded] = useFonts({
-    Roboto_400Regular,
-    Roboto_500Medium,
-    Roboto_700Bold,
-  });
+  // Removed fontsLoaded state and useFonts hook
+
+  const languageMap: Record<string, string> = {
+    "C++": "cpp",
+    "JavaScript": "javascript",
+    "Python": "python",
+    "Java": "java",
+    "C#": "csharp",
+  };
   
   useEffect(() => {
     const loadProblem = async () => {
@@ -68,228 +72,129 @@ export default function ProblemDetailScreen() {
     router.back();
   };
   
-  if (!fontsLoaded) {
-    return null;
-  }
-  
+  // Removed !fontsLoaded check
+
   return (
     <View className="flex-1 bg-[#131C24]">
-      {/* Header with back button */}
-      <View className="flex-row items-center p-4 pb-2">
-        <TouchableOpacity
-          className="p-2"
-          onPress={handleBack}
-        >
-          <Ionicons name="chevron-back" size={24} color="#F8F9FB" />
-        </TouchableOpacity>
-      </View>
+      {/* Use the reusable ScreenHeader component */}
+      <ScreenHeader />
       
       {loading ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#6366F1" />
         </View>
       ) : problem ? (
-        <ScrollView className="flex-1 px-4">
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24, paddingTop: 16, paddingHorizontal: 16 }}>
           {/* Problem Title */}
-          <Text 
-            className="text-[#F8F9FB] text-3xl font-bold mb-6"
-            style={{ fontFamily: 'Roboto_700Bold' }}
+          <Text
+            className="text-[#F8F9FB] text-2xl font-semibold mb-4" // Adjusted size/weight/margin
+            // style={{ fontFamily: 'Roboto_700Bold' }} // Remove font family if using default nativewind/system fonts
           >
             {problem.title}
           </Text>
-          
-        {/* Problem Description */}
-        <View className="mb-6">
+
+          {/* Problem Description */}
+          <View className="bg-[#1E2A3A] rounded-lg p-4 mb-6"> {/* Added background, padding, rounding */}
             {Platform.OS === 'web' ? (
-                <div 
-                    style={{ 
-                        color: '#F8F9FB',
-                        backgroundColor: '#131C24',
-                        fontSize: '16px',
-                        lineHeight: 1.5,
-                        fontFamily: 'Roboto, sans-serif',
-                    }}
-                    dangerouslySetInnerHTML={{ 
-                        __html: `
-                        <style>
-                            p { margin-bottom: 16px; }
-                            code {
-                            font-family: monospace;
-                            background-color: #29374C;
-                            padding: 2px 4px;
-                            border-radius: 4px;
-                            }
-                            pre {
-                            background-color: #1E2A3A;
-                            padding: 16px;
-                            border-radius: 8px;
-                            overflow-x: auto;
-                            font-family: monospace;
-                            }
-                            strong { font-weight: bold; }
-                        </style>
-                        ${problem.content || ''}
-                        `
-                    }} 
-                />
-            ) : (
-                <WebView
-                originWhitelist={['*']}
-                source={{ 
-                    html: `
-                    <html>
-                    <head>
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <style>
-                        body {
-                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-                            padding: 0;
-                            margin: 0;
-                            color: #F8F9FB;
-                            background-color: #131C24;
-                            font-size: 16px;
-                            line-height: 1.5;
-                        }
-                        p {
-                            margin-bottom: 16px;
-                        }
-                        code {
-                            font-family: monospace;
-                            background-color: #29374C;
-                            padding: 2px 4px;
-                            border-radius: 4px;
-                        }
-                        pre {
-                            background-color: #1E2A3A;
-                            padding: 16px;
-                            border-radius: 8px;
-                            overflow-x: auto;
-                            font-family: monospace;
-                        }
-                        strong {
-                            font-weight: bold;
-                        }
-                        </style>
-                    </head>
-                    <body>
-                        ${problem.content || ''}
-                    </body>
-                    </html>
-                    `
+              <div
+                style={{ color: '#D1D5DB', fontFamily: '-apple-system, sans-serif', fontSize: '15px', lineHeight: 1.6 }} // Consistent styles
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    <style>
+                      body { margin: 0; padding: 0; }
+                      p { margin-bottom: 1em; }
+                      code { font-family: monospace; background-color: #29374C; padding: 0.2em 0.4em; border-radius: 4px; font-size: 0.9em; }
+                      pre { background-color: #131C24; padding: 1em; border-radius: 6px; overflow-x: auto; font-family: monospace; font-size: 0.9em; }
+                      strong { font-weight: 600; }
+                      ul, ol { padding-left: 1.5em; margin-bottom: 1em; }
+                      li { margin-bottom: 0.5em; }
+                    </style>
+                    ${problem.content || ''}
+                  `
                 }}
-                style={{ 
-                  height: webViewHeight,
-                  backgroundColor: '#131C24' 
+              />
+            ) : (
+              <WebView
+                originWhitelist={['*']}
+                source={{
+                  html: `
+                  <html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <style>
+                    body { font-family: -apple-system, sans-serif; margin: 0; padding: 0; color: #D1D5DB; background-color: #1E2A3A; font-size: 15px; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; }
+                    p { margin-bottom: 1em; }
+                    code { font-family: monospace; background-color: #29374C; padding: 0.2em 0.4em; border-radius: 4px; font-size: 0.9em; }
+                    pre { background-color: #131C24; padding: 1em; border-radius: 6px; overflow-x: auto; font-family: monospace; font-size: 0.9em; }
+                    strong { font-weight: 600; }
+                    ul, ol { padding-left: 1.5em; margin-bottom: 1em; }
+                    li { margin-bottom: 0.5em; }
+                  </style></head>
+                  <body>${problem.content || ''}</body></html>`
+                }}
+                style={{
+                  height: webViewHeight, // Keep dynamic height
+                  backgroundColor: '#1E2A3A', // Match container background
+                  opacity: 0.99 // Minor hack sometimes needed for WebView sizing
                 }}
                 onMessage={(event) => {
+                  // Consider adding a maximum height check if needed
                   setWebViewHeight(Number(event.nativeEvent.data));
                 }}
                 injectedJavaScript={`
-                  setTimeout(function() {
-                    window.ReactNativeWebView.postMessage(document.body.scrollHeight);
-                  }, 500);
-                  true;
+                  const height = document.body.scrollHeight;
+                  window.ReactNativeWebView.postMessage(height);
+                  true; // note: this is required, or you'll sometimes get silent failures
                 `}
-                />
-            )}
-        </View>
-          
-          {/* Solution Section */}
-          <Text 
-            className="text-[#F8F9FB] text-xl font-bold mb-4"
-            style={{ fontFamily: 'Roboto_700Bold' }}
-          >
-            Solution:
-          </Text>
-          
-          {/* Language Selection Tabs */}
-          <View className="flex-row flex-wrap mb-4">
-            {Object.keys(solutions).length > 0 ? (
-              Object.keys(solutions).map(lang => (
-                <TouchableOpacity
-                  key={lang}
-                  onPress={() => setSelectedLanguage(lang)}
-                  className={`mr-2 mb-2 px-4 py-2 rounded-full ${
-                    selectedLanguage === lang ? 'bg-[#29374C]' : 'bg-[#1E2A3A]'
-                  }`}
-                >
-                  <Text 
-                    className="text-[#F8F9FB] text-base capitalize"
-                    style={{ fontFamily: 'Roboto_500Medium' }}
-                  >
-                    {lang === 'cpp' ? 'C++' : lang.charAt(0).toUpperCase() + lang.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))
-            ) : (
-              // Default language tabs if no solutions available yet
-              ['python', 'cpp'].map(lang => (
-                <TouchableOpacity
-                  key={lang}
-                  onPress={() => setSelectedLanguage(lang)}
-                  className={`mr-2 mb-2 px-4 py-2 rounded-full ${
-                    selectedLanguage === lang ? 'bg-[#29374C]' : 'bg-[#1E2A3A]'
-                  }`}
-                >
-                  <Text 
-                    className="text-[#F8F9FB] text-base capitalize"
-                    style={{ fontFamily: 'Roboto_500Medium' }}
-                  >
-                    {lang === 'cpp' ? 'C++' : lang.charAt(0).toUpperCase() + lang.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))
+                androidLayerType="hardware" // Potential performance improvement on Android
+                scalesPageToFit={false}
+              />
             )}
           </View>
           
+          {/* Solution Section Title */}
+          <Text
+            className="text-[#F8F9FB] text-lg font-semibold mb-3" // Adjusted size/weight/margin
+            // style={{ fontFamily: 'Roboto_700Bold' }} // Remove font family
+          >
+            Solution
+          </Text>
+
+          {/* Use LanguageTabs component */}
+          <LanguageTabs
+            availableLanguages={Object.keys(solutions)}
+            selectedLanguage={selectedLanguage}
+            onSelectLanguage={setSelectedLanguage}
+            // Pass loading state if applicable, otherwise omit or pass false
+            // loading={solutionsLoading} // Example if loading state exists here
+          />
+
           {/* Solution Code Block */}
           {solutions[selectedLanguage] ? (
-            <View className="bg-[#1E2A3A] rounded-lg p-4 mb-8">
-              {Platform.OS === 'web' ? (
-                <SyntaxHighlighter
-                  language={selectedLanguage}
-                  style={atomOneDark}
-                  customStyle={{
-                    backgroundColor: '#1E2A3A',
-                    padding: 0,
-                    margin: 0,
-                    fontSize: 14,
-                    lineHeight: 24
-                  }}
-                >
-                  {solutions[selectedLanguage]}
-                </SyntaxHighlighter>
-              ) : (
-                <RNHighlighter
-                  language={selectedLanguage}
-                  fontSize={14}
-                  style={atomOneDark}
-                  customStyle={{ backgroundColor: '#1E2A3A' }}
-                  lineHeight={24}
-                >
-                  {solutions[selectedLanguage]}
-                </RNHighlighter>
-              )}
-            </View>
-          ) : (
-            <Text 
-              className="text-[#8A9DC0] text-base mb-8"
-              style={{ fontFamily: 'Roboto_400Regular' }}
+            <CodeHighlighter
+              language={languageMap[selectedLanguage] || selectedLanguage.toLowerCase()}
+              style={{ marginBottom: 24 }} // Adjusted margin
             >
-              Solution not available for this language
-            </Text>
+              {solutions[selectedLanguage]}
+            </CodeHighlighter>
+          ) : (
+            // Container for "Not Available" message for consistent spacing
+            <View className="bg-[#1E2A3A] rounded-lg p-4 mb-6">
+              <Text className="text-[#ADBAC7] text-sm"> {/* Adjusted style */}
+                Solution code not available for {languageMap[selectedLanguage] || selectedLanguage}.
+              </Text>
+            </View>
           )}
           
-          {/* Bottom padding to ensure content is visible */}
-          <View className="h-10" />
+          {/* Removed explicit bottom padding view, handled by ScrollView contentContainerStyle */}
         </ScrollView>
       ) : (
-        <View className="flex-1 justify-center items-center p-4">
-          <Text 
-            className="text-[#F8F9FB] text-base text-center"
-            style={{ fontFamily: 'Roboto_500Medium' }}
-          >
-            Problem not found
+        // Styled "Not Found" state
+        <View className="flex-1 justify-center items-center p-6 bg-[#131C24]">
+          <Ionicons name="alert-circle-outline" size={48} color="#8A9DC0" />
+          <Text className="text-[#ADBAC7] text-lg mt-4 text-center">
+            Problem Not Found
+          </Text>
+          <Text className="text-[#8A9DC0] text-sm mt-1 text-center">
+            The requested problem could not be loaded.
           </Text>
         </View>
       )}

@@ -46,7 +46,7 @@ func (s *FlashcardReviewStore) GetDueFlashcardReviews(userID uuid.UUID, deckID i
 			fr.id, fr.problem_id, fr.user_id, fr.deck_id,
 			fr.stability, fr.difficulty, fr.elapsed_days, fr.scheduled_days,
 			fr.reps, fr.lapses, fr.state, fr.last_review, fr.next_review_at,
-			p.id, p.frontend_id, p.title, p.title_slug, p.difficulty, p.is_paid_only, p.content, p.solution_approach
+			p.id, p.frontend_id, p.title, p.title_slug, p.difficulty, p.is_paid_only, p.content, COALESCE(p.solution_approach, '') AS solution_approach
 		FROM flashcard_reviews fr
 		JOIN problems p ON fr.problem_id = p.id
 		WHERE fr.user_id = $1 AND fr.next_review_at <= NOW()::timestamp

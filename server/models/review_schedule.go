@@ -20,11 +20,11 @@ type ReviewSchedule struct {
 	// FSRS fields
 	Stability     float64   `json:"stability"`
 	Difficulty    float64   `json:"difficulty"`
-	ElapsedDays   uint64    `json:"elapsed_days"`
-	ScheduledDays uint64    `json:"scheduled_days"`
-	Reps          uint64    `json:"reps"`
-	Lapses        uint64    `json:"lapses"`
-	State         int       `json:"state"` // 0=New, 1=Learning, 2=Review, 3=Relearning
+	ElapsedDays   int32     `json:"elapsed_days"`   // Changed from uint64 assuming DB is INTEGER
+	ScheduledDays int32     `json:"scheduled_days"` // Changed from uint64 assuming DB is INTEGER
+	Reps          int32     `json:"reps"`           // Changed from uint64 assuming DB is INTEGER
+	Lapses        int32     `json:"lapses"`         // Changed from uint64 assuming DB is INTEGER
+	State         int16     `json:"state"` // Changed from int to int16 to match DB smallint (int2)
 	LastReview    time.Time `json:"last_review"`
 }
 
@@ -431,10 +431,10 @@ func ConvertReviewScheduleToFSRS(review *ReviewSchedule) fsrs.Card {
 		Due:           review.NextReviewAt,
 		Stability:     review.Stability,
 		Difficulty:    review.Difficulty,
-		ElapsedDays:   review.ElapsedDays,
-		ScheduledDays: review.ScheduledDays,
-		Reps:          review.Reps,
-		Lapses:        review.Lapses,
+		ElapsedDays:   uint64(review.ElapsedDays),   // Cast to uint64 for FSRS
+		ScheduledDays: uint64(review.ScheduledDays), // Cast to uint64 for FSRS
+		Reps:          uint64(review.Reps),          // Cast to uint64 for FSRS
+		Lapses:        uint64(review.Lapses),        // Cast to uint64 for FSRS
 		State:         fsrs.State(review.State),
 		LastReview:    review.LastReview,
 	}
@@ -445,11 +445,11 @@ func ConvertFSRSToReviewSchedule(card fsrs.Card, review *ReviewSchedule) {
 	review.NextReviewAt = card.Due
 	review.Stability = card.Stability
 	review.Difficulty = card.Difficulty
-	review.ElapsedDays = card.ElapsedDays
-	review.ScheduledDays = card.ScheduledDays
-	review.Reps = card.Reps
-	review.Lapses = card.Lapses
-	review.State = int(card.State)
+	review.ElapsedDays = int32(card.ElapsedDays)     // Cast from uint64 from FSRS
+	review.ScheduledDays = int32(card.ScheduledDays) // Cast from uint64 from FSRS
+	review.Reps = int32(card.Reps)                   // Cast from uint64 from FSRS
+	review.Lapses = int32(card.Lapses)               // Cast from uint64 from FSRS
+	review.State = int16(card.State) // Cast fsrs.State (int) to int16 for struct field
 	review.LastReview = card.LastReview
 }
 

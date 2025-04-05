@@ -26,8 +26,8 @@ func SetupRoutes(db *sql.DB, logger *zap.Logger) chi.Router {
 	reviewStore := models.NewReviewScheduleStore(db)
 	problemStore := models.NewProblemStore(db)
 	submissionStore := models.NewSubmissionStore(db)
-	deckStore := models.NewDeckStore(db)
-	flashcardStore := models.NewFlashcardReviewStore(db)
+	flashcardStore := models.NewFlashcardReviewStore(db) // Initialize flashcardStore first
+	deckStore := models.NewDeckStore(db, flashcardStore) // Pass flashcardStore to NewDeckStore
 
 	userHandler := handlers.NewUserHandler(userStore)
 	reviewHandler := handlers.NewReviewHandler(reviewStore, submissionStore)

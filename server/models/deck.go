@@ -1,15 +1,20 @@
 package models
 
 import (
+	"context" // Added
 	"database/sql"
-	// "fmt" // Removed unused import
+	"fmt" // Added
 	"time"
 
 	"github.com/google/uuid"
 )
 
-func NewDeckStore(db *sql.DB) *DeckStore {
-	return &DeckStore{db: db}
+// Assuming FlashcardReviewStore is defined elsewhere, e.g., in flashcard_review.go
+// type FlashcardReviewStore struct { ... }
+
+// Modified signature to accept FlashcardReviewStore
+func NewDeckStore(db *sql.DB, flashcardReviewStore *FlashcardReviewStore) *DeckStore {
+	return &DeckStore{db: db, flashcardReviewStore: flashcardReviewStore}
 }
 
 type Deck struct {
@@ -30,7 +35,8 @@ type DeckProblem struct {
 
 // DeckStore for database operations
 type DeckStore struct {
-	db *sql.DB
+	db                   *sql.DB
+	flashcardReviewStore *FlashcardReviewStore // Added dependency
 }
 
 func (s *DeckStore) GetAllPublicDecks() ([]Deck, error) {
@@ -114,11 +120,44 @@ func (s *DeckStore) AddProblemToDeck(deckID int, problemID int) error {
 	return err
 }
 
-func (s *DeckStore) RemoveProblemFromDeck(deckID, problemID int) error {
-	query := `DELETE FROM deck_problems WHERE deck_id = $1 AND problem_id = $2`
-	_, err := s.db.Exec(query, deckID, problemID)
-	return err
+// RemoveProblemFromDeck removes a problem from a deck and also deletes the corresponding flashcard review for the user.
+// It now requires context and userID.
+func (s *DeckStore) RemoveProblemFromDeck(ctx context.Context, deckID, problemID int, userID uuid.UUID) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback() // Rollback if commit fails or function panics
+
+	// 1. Delete from deck_problems
+	queryDeckProblem := `DELETE FROM deck_problems WHERE deck_id = $1 AND problem_id = $2`
+	_, err = tx.ExecContext(ctx, queryDeckProblem, deckID, problemID)
+	if err != nil {
+		return fmt.Errorf("failed to delete from deck_problems: %w", err)
+	}
+
+	// 2. Delete the corresponding flashcard review for this user, deck, and problem
+	// Assuming FlashcardReviewStore has a method like DeleteReviewByProblemAndDeck
+	// This method needs to be implemented in flashcard_review.go
+	err = s.flashcardReviewStore.DeleteReviewByProblemAndDeck(ctx, tx, userID, deckID, problemID)
+	if err != nil {
+		// Don't fail if the review doesn't exist (it might have been deleted already or never created)
+		// But fail on other errors
+		if err != sql.ErrNoRows { // Or however your Delete method signals "not found"
+			return fmt.Errorf("failed to delete flashcard review: %w", err)
+		}
+		// If it's sql.ErrNoRows, we can ignore it and proceed to commit.
+	}
+
+
+	// 3. Commit transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
+
 
 // GetProblemsInDeck retrieves problems associated with a specific deck with pagination
 func (s *DeckStore) GetProblemsInDeck(deckID int, limit int, offset int) ([]Problem, error) {

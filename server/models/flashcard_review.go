@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context" // Added import
 	"database/sql"
 	"fmt"
 	"time"
@@ -222,7 +223,39 @@ func (s *FlashcardReviewStore) GetReviewByID(reviewID int) (FlashcardReview, err
 	return review, nil
 }
 
+// DeleteReviewByProblemAndDeck deletes a specific flashcard review entry based on user, deck, and problem ID.
+// It expects to be run within an existing transaction.
+func (s *FlashcardReviewStore) DeleteReviewByProblemAndDeck(ctx context.Context, tx *sql.Tx, userID uuid.UUID, deckID int, problemID int) error {
+	query := `
+		DELETE FROM flashcard_reviews
+		WHERE user_id = $1 AND deck_id = $2 AND problem_id = $3
+	`
+	result, err := tx.ExecContext(ctx, query, userID.String(), deckID, problemID)
+	if err != nil {
+		return fmt.Errorf("failed to execute delete flashcard review: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		// Error checking rows affected, might indicate a driver issue or other problem
+		return fmt.Errorf("failed to check rows affected after delete: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		// No rows were deleted, which implies the review didn't exist for this combination.
+		// Return sql.ErrNoRows so the caller can decide how to handle "not found".
+		return sql.ErrNoRows
+	}
+
+	// Successfully deleted one or more rows (should ideally be just one)
+	return nil
+}
+
+
 func (s *FlashcardReviewStore) AddDeckToUserFlashcards(userID uuid.UUID, deckID int) error {
+	// Note: This function uses s.db.Begin() - consider if it should also accept a context
+	// and use BeginTx if it might be called within a larger transaction context elsewhere.
+	// For now, leaving it as is.
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err

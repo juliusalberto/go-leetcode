@@ -167,7 +167,6 @@ func (h *DeckHandler) GetDeckProblems(w http.ResponseWriter, r *http.Request) {
 		offset = 0 // Default offset
 	}
 
-
 	problems, err := h.store.GetProblemsInDeck(deckID, limit, offset)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Failed to get deck problems (deckID: %d, limit: %d, offset: %d): %v", deckID, limit, offset, err)
@@ -273,7 +272,8 @@ func (h *DeckHandler) RemoveProblemFromDeck(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := h.store.RemoveProblemFromDeck(deckID, problemID); err != nil {
+	// Pass context and userID to the updated store method
+	if err := h.store.RemoveProblemFromDeck(r.Context(), deckID, problemID, userID); err != nil {
 		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to remove problem from deck")
 		return
 	}

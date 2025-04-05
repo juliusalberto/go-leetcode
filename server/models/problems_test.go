@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"go-leetcode/backend/internal/database"
 	"go-leetcode/backend/internal/testutils"
 	"strings"
@@ -124,6 +125,7 @@ func TestListProblems(t *testing.T) {
 			},
 			wantMinCount: 1,
 			checkFirstProblem: func(p Problem) bool {
+				fmt.Printf("Problem %s with these topic tags: %v", p.TitleSlug, p.TopicTags)
 				for _, tag := range p.TopicTags {
 					if tag.Slug == "array" {
 						return true

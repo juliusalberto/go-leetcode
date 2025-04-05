@@ -2,7 +2,7 @@ package models
 
 import (
 	"database/sql"
-	// "fmt" // Removed unused import
+	"fmt" // Uncommented fmt for logging
 	"time"
 
 	"github.com/google/uuid"
@@ -54,10 +54,12 @@ func (s *DeckStore) GetAllPublicDecks() ([]Deck, error) {
 }
 
 func (s *DeckStore) GetUserDecks(userID uuid.UUID) ([]Deck, error) {
+	fmt.Printf("DEBUG GetUserDecks: Fetching decks for userID: %s\n", userID.String()) // Log userID
 	query := `SELECT id, name, description, created_at, is_public FROM decks WHERE user_id = $1`
 	rows, err := s.db.Query(query, userID)
 	if err != nil {
-		return nil, err // Reverted error handling
+		fmt.Printf("DEBUG GetUserDecks: Error executing query for userID %s: %v\n", userID.String(), err) // Log query error
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -67,10 +69,12 @@ func (s *DeckStore) GetUserDecks(userID uuid.UUID) ([]Deck, error) {
 		// Reverted scan
 		err := rows.Scan(&deck.ID, &deck.Name, &deck.Description, &deck.CreatedAt, &deck.IsPublic)
 		if err != nil {
-			return nil, err // Reverted error handling
+			fmt.Printf("DEBUG GetUserDecks: Error scanning deck row for userID %s: %v\n", userID.String(), err) // Log scan error
+			return nil, err
 		}
 		decks = append(decks, deck)
 	}
+	fmt.Printf("DEBUG GetUserDecks: Found %d decks for userID: %s\n", len(decks), userID.String()) // Log count
 	return decks, nil
 }
 
@@ -130,6 +134,8 @@ func (s *DeckStore) GetProblemsInDeck(deckID int, limit int, offset int) ([]Prob
 		ORDER BY p.frontend_id -- Or another meaningful order
 		LIMIT $2 OFFSET $3
 	`
+	// DEBUG: Log the query and parameters before execution
+	// fmt.Printf("DEBUG: Executing GetProblemsInDeck query:\nQuery: %s\nParams: deckID=%d, limit=%d, offset=%d\n", query, deckID, limit, offset)
 	rows, err := s.db.Query(query, deckID, limit, offset)
 	if err != nil {
 		return nil, err

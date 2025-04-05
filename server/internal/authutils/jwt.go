@@ -48,15 +48,6 @@ func ParseAndValidateToken(tokenString string) (uuid.UUID, string, error) {
 	// Try to parse the token without validation just to see the claims
 	parser := jwt.NewParser()
 	token, _, err := parser.ParseUnverified(tokenString, &CustomClaims{})
-	if err == nil && token != nil {
-		if claims, ok := token.Claims.(*CustomClaims); ok {
-			fmt.Println("DEBUG: Unverified token claims:")
-			fmt.Println("  - sub:", claims.UserID)
-			fmt.Println("  - email:", claims.Email)
-			fmt.Println("  - iss:", claims.Issuer)
-			fmt.Println("  - exp:", claims.ExpiresAt)
-		}
-	}
 
 	// Now do the real validation
 	claims := &CustomClaims{}

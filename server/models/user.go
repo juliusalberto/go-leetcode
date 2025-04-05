@@ -135,8 +135,10 @@ func (s *UserStore) CheckUserExistsByID(id uuid.UUID) (bool, error) {
 	var exists bool
 	err := s.db.QueryRow(query, id).Scan(&exists)
 	if err != nil {
-		fmt.Printf("CheckUserExistsByID: Database error: %v\n", err)
-		return false, fmt.Errorf("error checking user existence: %v", err)
+		// Add specific debug log for the error
+		fmt.Printf("DEBUG CheckUserExistsByID: Scan error for UUID %s: %v\n", id.String(), err)
+		// Still return the wrapped error
+		return false, fmt.Errorf("error checking user existence: %w", err) // Use %w for error wrapping
 	}
 
 	fmt.Printf("CheckUserExistsByID: User exists: %v\n", exists)

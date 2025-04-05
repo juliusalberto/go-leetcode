@@ -131,6 +131,7 @@ func (h *UserHandler) CompleteProfile(w http.ResponseWriter, r *http.Request) {
 	// Create user profile in the DB with the UUID from auth
 	user.ID = userID
 	user.Email = email
+	user.CreatedAt = time.Now().UTC() // Set CreatedAt before saving
 	
 	// Use CreateUserByAuth which properly includes the ID field
 	if err := h.store.CreateUserByAuth(&user); err != nil {

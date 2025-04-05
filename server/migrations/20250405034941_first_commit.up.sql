@@ -112,214 +112,214 @@ alter table "public"."problems_topic" add constraint "problems_topic_problem_id_
 
 alter table "public"."problems_topic" validate constraint "problems_topic_problem_id_fkey";
 
-grant delete on table "public"."deck_problems" to "anon";
+-- grant delete on table "public"."deck_problems" to "anon";
+--
+-- grant insert on table "public"."deck_problems" to "anon";
+--
+-- grant references on table "public"."deck_problems" to "anon";
+--
+-- grant select on table "public"."deck_problems" to "anon";
+--
+-- grant trigger on table "public"."deck_problems" to "anon";
+--
+-- grant truncate on table "public"."deck_problems" to "anon";
+--
+-- grant update on table "public"."deck_problems" to "anon";
+--
+-- grant delete on table "public"."deck_problems" to "authenticated";
+--
+-- grant insert on table "public"."deck_problems" to "authenticated";
+--
+-- grant references on table "public"."deck_problems" to "authenticated";
+--
+-- grant select on table "public"."deck_problems" to "authenticated";
+--
+-- grant trigger on table "public"."deck_problems" to "authenticated";
+--
+-- grant truncate on table "public"."deck_problems" to "authenticated";
+--
+-- grant update on table "public"."deck_problems" to "authenticated";
+--
+-- grant delete on table "public"."deck_problems" to "service_role";
+--
+-- grant insert on table "public"."deck_problems" to "service_role";
+--
+-- grant references on table "public"."deck_problems" to "service_role";
+--
+-- grant select on table "public"."deck_problems" to "service_role";
+--
+-- grant trigger on table "public"."deck_problems" to "service_role";
+--
+-- grant truncate on table "public"."deck_problems" to "service_role";
+--
+-- grant update on table "public"."deck_problems" to "service_role";
+
+-- grant delete on table "public"."decks" to "anon";
+--
+-- grant insert on table "public"."decks" to "anon";
+--
+-- grant references on table "public"."decks" to "anon";
+--
+-- grant select on table "public"."decks" to "anon";
+--
+-- grant trigger on table "public"."decks" to "anon";
+--
+-- grant truncate on table "public"."decks" to "anon";
+--
+-- grant update on table "public"."decks" to "anon";
+--
+-- grant delete on table "public"."decks" to "authenticated";
+--
+-- grant insert on table "public"."decks" to "authenticated";
+--
+-- grant references on table "public"."decks" to "authenticated";
+--
+-- grant select on table "public"."decks" to "authenticated";
+--
+-- grant trigger on table "public"."decks" to "authenticated";
+--
+-- grant truncate on table "public"."decks" to "authenticated";
+--
+-- grant update on table "public"."decks" to "authenticated";
+--
+-- grant delete on table "public"."decks" to "service_role";
+--
+-- grant insert on table "public"."decks" to "service_role";
+--
+-- grant references on table "public"."decks" to "service_role";
+--
+-- grant select on table "public"."decks" to "service_role";
+--
+-- grant trigger on table "public"."decks" to "service_role";
+--
+-- grant truncate on table "public"."decks" to "service_role";
+--
+-- grant update on table "public"."decks" to "service_role";
+
+-- grant delete on table "public"."flashcard_review_logs" to "anon";
+--
+-- grant insert on table "public"."flashcard_review_logs" to "anon";
+--
+-- grant references on table "public"."flashcard_review_logs" to "anon";
+--
+-- grant select on table "public"."flashcard_review_logs" to "anon";
+--
+-- grant trigger on table "public"."flashcard_review_logs" to "anon";
+--
+-- grant truncate on table "public"."flashcard_review_logs" to "anon";
+--
+-- grant update on table "public"."flashcard_review_logs" to "anon";
+--
+-- grant delete on table "public"."flashcard_review_logs" to "authenticated";
+--
+-- grant insert on table "public"."flashcard_review_logs" to "authenticated";
+--
+-- grant references on table "public"."flashcard_review_logs" to "authenticated";
+--
+-- grant select on table "public"."flashcard_review_logs" to "authenticated";
+--
+-- grant trigger on table "public"."flashcard_review_logs" to "authenticated";
+--
+-- grant truncate on table "public"."flashcard_review_logs" to "authenticated";
+--
+-- grant update on table "public"."flashcard_review_logs" to "authenticated";
+--
+-- grant delete on table "public"."flashcard_review_logs" to "service_role";
+--
+-- grant insert on table "public"."flashcard_review_logs" to "service_role";
+--
+-- grant references on table "public"."flashcard_review_logs" to "service_role";
+--
+-- grant select on table "public"."flashcard_review_logs" to "service_role";
+--
+-- grant trigger on table "public"."flashcard_review_logs" to "service_role";
+--
+-- grant truncate on table "public"."flashcard_review_logs" to "service_role";
+--
+-- grant update on table "public"."flashcard_review_logs" to "service_role";
 
-grant insert on table "public"."deck_problems" to "anon";
+-- grant delete on table "public"."flashcard_reviews" to "anon";
 
-grant references on table "public"."deck_problems" to "anon";
+-- grant insert on table "public"."flashcard_reviews" to "anon";
 
-grant select on table "public"."deck_problems" to "anon";
+-- grant references on table "public"."flashcard_reviews" to "anon";
 
-grant trigger on table "public"."deck_problems" to "anon";
+-- grant select on table "public"."flashcard_reviews" to "anon";
 
-grant truncate on table "public"."deck_problems" to "anon";
+-- grant trigger on table "public"."flashcard_reviews" to "anon";
 
-grant update on table "public"."deck_problems" to "anon";
+-- grant truncate on table "public"."flashcard_reviews" to "anon";
 
-grant delete on table "public"."deck_problems" to "authenticated";
+-- grant update on table "public"."flashcard_reviews" to "anon";
 
-grant insert on table "public"."deck_problems" to "authenticated";
+-- grant delete on table "public"."flashcard_reviews" to "authenticated";
 
-grant references on table "public"."deck_problems" to "authenticated";
+-- grant insert on table "public"."flashcard_reviews" to "authenticated";
 
-grant select on table "public"."deck_problems" to "authenticated";
+-- grant references on table "public"."flashcard_reviews" to "authenticated";
 
-grant trigger on table "public"."deck_problems" to "authenticated";
+-- grant select on table "public"."flashcard_reviews" to "authenticated";
 
-grant truncate on table "public"."deck_problems" to "authenticated";
+-- grant trigger on table "public"."flashcard_reviews" to "authenticated";
 
-grant update on table "public"."deck_problems" to "authenticated";
+-- grant truncate on table "public"."flashcard_reviews" to "authenticated";
 
-grant delete on table "public"."deck_problems" to "service_role";
+-- grant update on table "public"."flashcard_reviews" to "authenticated";
 
-grant insert on table "public"."deck_problems" to "service_role";
+-- grant delete on table "public"."flashcard_reviews" to "service_role";
 
-grant references on table "public"."deck_problems" to "service_role";
+-- grant insert on table "public"."flashcard_reviews" to "service_role";
 
-grant select on table "public"."deck_problems" to "service_role";
+-- grant references on table "public"."flashcard_reviews" to "service_role";
 
-grant trigger on table "public"."deck_problems" to "service_role";
+-- grant select on table "public"."flashcard_reviews" to "service_role";
 
-grant truncate on table "public"."deck_problems" to "service_role";
+-- grant trigger on table "public"."flashcard_reviews" to "service_role";
 
-grant update on table "public"."deck_problems" to "service_role";
+-- grant truncate on table "public"."flashcard_reviews" to "service_role";
 
-grant delete on table "public"."decks" to "anon";
+-- grant update on table "public"."flashcard_reviews" to "service_role";
 
-grant insert on table "public"."decks" to "anon";
+-- grant delete on table "public"."problems_topic" to "anon";
 
-grant references on table "public"."decks" to "anon";
+-- grant insert on table "public"."problems_topic" to "anon";
 
-grant select on table "public"."decks" to "anon";
+-- grant references on table "public"."problems_topic" to "anon";
 
-grant trigger on table "public"."decks" to "anon";
+-- grant select on table "public"."problems_topic" to "anon";
 
-grant truncate on table "public"."decks" to "anon";
+-- grant trigger on table "public"."problems_topic" to "anon";
 
-grant update on table "public"."decks" to "anon";
+-- grant truncate on table "public"."problems_topic" to "anon";
 
-grant delete on table "public"."decks" to "authenticated";
+-- grant update on table "public"."problems_topic" to "anon";
 
-grant insert on table "public"."decks" to "authenticated";
+-- grant delete on table "public"."problems_topic" to "authenticated";
 
-grant references on table "public"."decks" to "authenticated";
+-- grant insert on table "public"."problems_topic" to "authenticated";
 
-grant select on table "public"."decks" to "authenticated";
+-- grant references on table "public"."problems_topic" to "authenticated";
 
-grant trigger on table "public"."decks" to "authenticated";
+-- grant select on table "public"."problems_topic" to "authenticated";
 
-grant truncate on table "public"."decks" to "authenticated";
+-- grant trigger on table "public"."problems_topic" to "authenticated";
 
-grant update on table "public"."decks" to "authenticated";
+-- grant truncate on table "public"."problems_topic" to "authenticated";
 
-grant delete on table "public"."decks" to "service_role";
+-- grant update on table "public"."problems_topic" to "authenticated";
 
-grant insert on table "public"."decks" to "service_role";
+-- grant delete on table "public"."problems_topic" to "service_role";
 
-grant references on table "public"."decks" to "service_role";
+-- grant insert on table "public"."problems_topic" to "service_role";
 
-grant select on table "public"."decks" to "service_role";
+-- grant references on table "public"."problems_topic" to "service_role";
 
-grant trigger on table "public"."decks" to "service_role";
+-- grant select on table "public"."problems_topic" to "service_role";
 
-grant truncate on table "public"."decks" to "service_role";
+-- grant trigger on table "public"."problems_topic" to "service_role";
 
-grant update on table "public"."decks" to "service_role";
+-- grant truncate on table "public"."problems_topic" to "service_role";
 
-grant delete on table "public"."flashcard_review_logs" to "anon";
-
-grant insert on table "public"."flashcard_review_logs" to "anon";
-
-grant references on table "public"."flashcard_review_logs" to "anon";
-
-grant select on table "public"."flashcard_review_logs" to "anon";
-
-grant trigger on table "public"."flashcard_review_logs" to "anon";
-
-grant truncate on table "public"."flashcard_review_logs" to "anon";
-
-grant update on table "public"."flashcard_review_logs" to "anon";
-
-grant delete on table "public"."flashcard_review_logs" to "authenticated";
-
-grant insert on table "public"."flashcard_review_logs" to "authenticated";
-
-grant references on table "public"."flashcard_review_logs" to "authenticated";
-
-grant select on table "public"."flashcard_review_logs" to "authenticated";
-
-grant trigger on table "public"."flashcard_review_logs" to "authenticated";
-
-grant truncate on table "public"."flashcard_review_logs" to "authenticated";
-
-grant update on table "public"."flashcard_review_logs" to "authenticated";
-
-grant delete on table "public"."flashcard_review_logs" to "service_role";
-
-grant insert on table "public"."flashcard_review_logs" to "service_role";
-
-grant references on table "public"."flashcard_review_logs" to "service_role";
-
-grant select on table "public"."flashcard_review_logs" to "service_role";
-
-grant trigger on table "public"."flashcard_review_logs" to "service_role";
-
-grant truncate on table "public"."flashcard_review_logs" to "service_role";
-
-grant update on table "public"."flashcard_review_logs" to "service_role";
-
-grant delete on table "public"."flashcard_reviews" to "anon";
-
-grant insert on table "public"."flashcard_reviews" to "anon";
-
-grant references on table "public"."flashcard_reviews" to "anon";
-
-grant select on table "public"."flashcard_reviews" to "anon";
-
-grant trigger on table "public"."flashcard_reviews" to "anon";
-
-grant truncate on table "public"."flashcard_reviews" to "anon";
-
-grant update on table "public"."flashcard_reviews" to "anon";
-
-grant delete on table "public"."flashcard_reviews" to "authenticated";
-
-grant insert on table "public"."flashcard_reviews" to "authenticated";
-
-grant references on table "public"."flashcard_reviews" to "authenticated";
-
-grant select on table "public"."flashcard_reviews" to "authenticated";
-
-grant trigger on table "public"."flashcard_reviews" to "authenticated";
-
-grant truncate on table "public"."flashcard_reviews" to "authenticated";
-
-grant update on table "public"."flashcard_reviews" to "authenticated";
-
-grant delete on table "public"."flashcard_reviews" to "service_role";
-
-grant insert on table "public"."flashcard_reviews" to "service_role";
-
-grant references on table "public"."flashcard_reviews" to "service_role";
-
-grant select on table "public"."flashcard_reviews" to "service_role";
-
-grant trigger on table "public"."flashcard_reviews" to "service_role";
-
-grant truncate on table "public"."flashcard_reviews" to "service_role";
-
-grant update on table "public"."flashcard_reviews" to "service_role";
-
-grant delete on table "public"."problems_topic" to "anon";
-
-grant insert on table "public"."problems_topic" to "anon";
-
-grant references on table "public"."problems_topic" to "anon";
-
-grant select on table "public"."problems_topic" to "anon";
-
-grant trigger on table "public"."problems_topic" to "anon";
-
-grant truncate on table "public"."problems_topic" to "anon";
-
-grant update on table "public"."problems_topic" to "anon";
-
-grant delete on table "public"."problems_topic" to "authenticated";
-
-grant insert on table "public"."problems_topic" to "authenticated";
-
-grant references on table "public"."problems_topic" to "authenticated";
-
-grant select on table "public"."problems_topic" to "authenticated";
-
-grant trigger on table "public"."problems_topic" to "authenticated";
-
-grant truncate on table "public"."problems_topic" to "authenticated";
-
-grant update on table "public"."problems_topic" to "authenticated";
-
-grant delete on table "public"."problems_topic" to "service_role";
-
-grant insert on table "public"."problems_topic" to "service_role";
-
-grant references on table "public"."problems_topic" to "service_role";
-
-grant select on table "public"."problems_topic" to "service_role";
-
-grant trigger on table "public"."problems_topic" to "service_role";
-
-grant truncate on table "public"."problems_topic" to "service_role";
-
-grant update on table "public"."problems_topic" to "service_role";
+-- grant update on table "public"."problems_topic" to "service_role";
 
 

@@ -9,31 +9,31 @@ import (
 )
 
 type TopicTag struct {
-	Name string `json:"name"`
-	Slug string `json:"slug"`
+	Name           string  `json:"name"`
+	Slug           string  `json:"slug"`
 	TranslatedName *string `json:"translatedName,omitempty"`
 }
 
 type SimilarQuestion struct {
-	Title       string `json:"title"`
-	TitleSlug   string `json:"titleSlug"`
-	Difficulty  string `json:"difficulty"`
+	Title           string  `json:"title"`
+	TitleSlug       string  `json:"titleSlug"`
+	Difficulty      string  `json:"difficulty"`
 	TranslatedTitle *string `json:"translatedTitle,omitempty"`
 }
 
 type Problem struct {
-	ID              int          `json:"id"`
-	FrontendID      int          `json:"frontend_id"`
-	Title           string          `json:"title"`
-	TitleSlug       string          `json:"title_slug"`
-	Difficulty      string          `json:"difficulty"`
-	IsPaidOnly      bool            `json:"is_paid_only"`
-	Content         string          `json:"content"`
-	TopicTags       []TopicTag      `json:"topic_tags"`
-	ExampleTestcases string         `json:"example_testcases"`
+	ID               int               `json:"id"`
+	FrontendID       int               `json:"frontend_id"`
+	Title            string            `json:"title"`
+	TitleSlug        string            `json:"title_slug"`
+	Difficulty       string            `json:"difficulty"`
+	IsPaidOnly       bool              `json:"is_paid_only"`
+	Content          string            `json:"content"`
+	TopicTags        []TopicTag        `json:"topic_tags"`
+	ExampleTestcases string            `json:"example_testcases"`
 	SimilarQuestions []SimilarQuestion `json:"similar_questions"`
-	CreatedAt       time.Time       `json:"created_at"`
-	SolutionApproach string			`json:"solution_approach"`
+	CreatedAt        time.Time         `json:"created_at"`
+	SolutionApproach string            `json:"solution_approach"`
 }
 
 type ProblemStore struct {
@@ -44,7 +44,7 @@ func NewProblemStore(db *sql.DB) *ProblemStore {
 	return &ProblemStore{db: db}
 }
 
-func (s *ProblemStore) GetProblemBySlug(titleSlug string)(Problem, error) {
+func (s *ProblemStore) GetProblemBySlug(titleSlug string) (Problem, error) {
 	var problem Problem
 	var similarQuestionsString, topicTagsString string
 
@@ -86,7 +86,7 @@ func (s *ProblemStore) GetProblemBySlug(titleSlug string)(Problem, error) {
 	return problem, nil
 }
 
-func (s *ProblemStore) GetProblemByID (ID int)(Problem, error) {
+func (s *ProblemStore) GetProblemByID(ID int) (Problem, error) {
 	var problem Problem
 	var similarQuestionsString, topicTagsString string
 
@@ -128,7 +128,7 @@ func (s *ProblemStore) GetProblemByID (ID int)(Problem, error) {
 	return problem, nil
 }
 
-func (s *ProblemStore) GetProblemByFrontendID (FrontendID int)(Problem, error) {
+func (s *ProblemStore) GetProblemByFrontendID(FrontendID int) (Problem, error) {
 	var problem Problem
 	var similarQuestionsString, topicTagsString string
 
@@ -171,26 +171,26 @@ func (s *ProblemStore) GetProblemByFrontendID (FrontendID int)(Problem, error) {
 }
 
 type ProblemFilter struct {
-	Difficulty string 
-	Tags []string 
+	Difficulty    string
+	Tags          []string
 	SearchKeyword string
-	PaidOnly *bool
+	PaidOnly      *bool
 }
 
 type ListProblemOptions struct {
-	Filter ProblemFilter
-	Limit int
-	Offset int
-	OrderBy string // field to order by (e.g. difficulty)
+	Filter   ProblemFilter
+	Limit    int
+	Offset   int
+	OrderBy  string // field to order by (e.g. difficulty)
 	OrderDir string // asc or desc
 }
 
 type ProblemList struct {
-    Problems []Problem	`json:"problems"`
-    Total    int		`json:"total"`
+	Problems []Problem `json:"problems"`
+	Total    int       `json:"total"`
 }
 
-func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, error) {
+func (s *ProblemStore) ListProblems(options ListProblemOptions) (ProblemList, error) {
 	baseQuery := `
 		SELECT p.id, p.frontend_id, p.title, p.title_slug, p.difficulty, p.is_paid_only, p.content, p.topic_tags,
 		p.example_testcases, p.similar_questions, p.created_at
@@ -203,24 +203,25 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 
 	// and then we add the query based on the filter
 	var whereClause string
-	var params []interface{}
+	var filterParams []interface{} // Parameters for WHERE clause (used in count)
+	var params []interface{}       // All parameters including pagination (used in main query)
 	paramPos := 1
 
 	if options.Filter.Difficulty != "" {
 		whereClause += fmt.Sprintf(" AND difficulty = $%d", paramPos)
-		params = append(params, options.Filter.Difficulty)
+		filterParams = append(filterParams, options.Filter.Difficulty) // Add to filterParams
 		paramPos++
 	}
 
 	if options.Filter.PaidOnly != nil {
 		whereClause += fmt.Sprintf(" AND is_paid_only = $%d", paramPos)
-		params = append(params, *options.Filter.PaidOnly)
+		filterParams = append(filterParams, *options.Filter.PaidOnly) // Add to filterParams
 		paramPos++
 	}
 
 	if options.Filter.SearchKeyword != "" {
 		whereClause += fmt.Sprintf(" AND title ILIKE $%d", paramPos)
-		params = append(params, "%" + options.Filter.SearchKeyword + "%")
+		filterParams = append(filterParams, "%"+options.Filter.SearchKeyword+"%") // Add to filterParams
 		paramPos++
 	}
 
@@ -229,7 +230,7 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 		for _, tag := range options.Filter.Tags {
 			tagClause := fmt.Sprintf("pt.topic_slug = $%d", paramPos)
 			tagConditions = append(tagConditions, tagClause)
-			params = append(params, tag)
+			filterParams = append(filterParams, tag) // Add to filterParams
 			paramPos++
 		}
 		whereClause += " AND (" + strings.Join(tagConditions, " OR ") + ")"
@@ -260,10 +261,10 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 			`, direction)
 		} else {
 			validColumns := map[string]string{
-				"difficulty": "difficulty",
-				"title": "title",
+				"difficulty":  "difficulty",
+				"title":       "title",
 				"frontend_id": "frontend_id",
-				"created_at": "created_at",
+				"created_at":  "created_at",
 			}
 
 			if column, exists := validColumns[options.OrderBy]; exists {
@@ -278,10 +279,13 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 
 	// apply pagination
 
-	limitOffsetClause := fmt.Sprintf(" LIMIT $%d OFFSET $%d", paramPos, paramPos + 1)
-	paramPos += 2
+	// Prepare the full parameter list *after* filter params are finalized
+	params = append(filterParams, options.Limit, options.Offset)
 
-	params = append(params, options.Limit, options.Offset)
+	// Use the correct parameter positions for LIMIT and OFFSET in the clause string
+	limitParamPos := len(filterParams) + 1
+	offsetParamPos := len(filterParams) + 2
+	limitOffsetClause := fmt.Sprintf(" LIMIT $%d OFFSET $%d", limitParamPos, offsetParamPos)
 	groupByClause := ` GROUP BY p.id, p.frontend_id, p.title, p.title_slug, p.difficulty, p.is_paid_only, p.content, p.topic_tags, p.example_testcases, p.similar_questions, p.created_at `
 
 	query := baseQuery + whereClause + groupByClause + orderClause + limitOffsetClause
@@ -290,17 +294,20 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 	fmt.Println(countQuery)
 
 	var total int
-	err := s.db.QueryRow(countQuery, params[:paramPos - 3]...).Scan(&total)
+	err := s.db.QueryRow(countQuery, filterParams...).Scan(&total) // Use filterParams
 
 	if err != nil {
+		// Also log the parameters used when the error occurs
+		fmt.Printf("ERROR executing countQuery. Query: %s, Params: %v\n", countQuery, filterParams)
 		return ProblemList{}, fmt.Errorf("error counting problems: %v", err)
 	}
 
 	var problems []Problem
-
 	rows, err := s.db.Query(query, params...)
 
 	if err != nil {
+		// Also log the parameters used when the error occurs
+		fmt.Printf("ERROR executing main query. Query: %s, Params: %v\n", query, params)
 		return ProblemList{}, fmt.Errorf("error querying problems: %v", err)
 	}
 
@@ -325,6 +332,8 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 		)
 
 		if err != nil {
+			// Log the scan error
+			fmt.Printf("ERROR scanning problems row: %v\n", err)
 			return ProblemList{}, fmt.Errorf("error scanning problems row: %v", err)
 		}
 
@@ -332,11 +341,15 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 		err = json.Unmarshal([]byte(topicTagsString), &problem.TopicTags)
 
 		if err != nil {
+			// Log the unmarshal error
+			fmt.Printf("ERROR unmarshaling topic tags for problem ID %d: %v\n", problem.ID, err)
 			return ProblemList{}, fmt.Errorf("error unmarshaling topic tags: %v", err)
 		}
 
 		err = json.Unmarshal([]byte(similarQuestionsString), &problem.SimilarQuestions)
 		if err != nil {
+			// Log the unmarshal error
+			fmt.Printf("ERROR unmarshaling similar questions for problem ID %d: %v\n", problem.ID, err)
 			return ProblemList{}, fmt.Errorf("error unmarshaling similar questions: %v", err)
 		}
 
@@ -346,7 +359,7 @@ func (s *ProblemStore) ListProblems(options ListProblemOptions)(ProblemList, err
 	// now we already have the problems
 	return ProblemList{
 		Problems: problems,
-		Total: total,
+		Total:    total,
 	}, nil
 }
 

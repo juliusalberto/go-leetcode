@@ -132,7 +132,9 @@ func (h *ReviewHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to get reviews")
+		// Include detailed error in the response message
+		errorMessage := fmt.Sprintf("Failed to get reviews: %v", err)
+		response.Error(w, http.StatusInternalServerError, "server_error", errorMessage)
 		return
 	}
 

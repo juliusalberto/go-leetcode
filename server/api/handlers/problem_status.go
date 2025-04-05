@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt" // <-- Add fmt package import
 	"go-leetcode/backend/api/middleware"
 	"go-leetcode/backend/models"
 	"go-leetcode/backend/pkg/response"
@@ -70,10 +71,13 @@ func (h *ProblemStatusHandler) GetProblemsWithStatus(w http.ResponseWriter, r *h
 		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to extract user UUID")
 		return
 	}
+	fmt.Printf("DEBUG GetProblemsWithStatus: Processing request for userID: %s\n", userID.String()) // Log UserID
 
 	// Get filtered problems
 	problemsList, err := h.problemStore.ListProblems(options)
 	if err != nil {
+		// Log the specific error on the server for debugging
+		fmt.Printf("ERROR: Failed to list problems: %v\n", err)
 		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to get problems list")
 		return
 	}
@@ -84,12 +88,14 @@ func (h *ProblemStatusHandler) GetProblemsWithStatus(w http.ResponseWriter, r *h
 		response.Error(w, http.StatusInternalServerError, "server_error", "Failed to get user submissions")
 		return
 	}
+	fmt.Printf("DEBUG GetProblemsWithStatus: Found %d submissions for userID: %s\n", len(submissions), userID.String()) // Log submission count
 
 	// Create a lookup map of completed problems
 	completedMap := make(map[string]bool)
 	for _, sub := range submissions {
 		completedMap[sub.TitleSlug] = true
 	}
+	fmt.Printf("DEBUG GetProblemsWithStatus: Created completedMap with %d entries for userID: %s\n", len(completedMap), userID.String()) // Log map size
 
 	// Combine data
 	var problemsWithStatus []models.ProblemWithStatus

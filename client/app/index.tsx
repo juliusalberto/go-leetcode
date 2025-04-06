@@ -204,7 +204,7 @@ export default function IndexScreen() {
         </TouchableOpacity>
       </View>
       
-      {/* Secondary Button */}
+      {/* Secondary Button
       <View className="flex-row justify-between px-4 gap-3">
         <TouchableOpacity 
           className="flex-1 h-12 rounded-xl justify-center items-center px-4"
@@ -217,7 +217,7 @@ export default function IndexScreen() {
             Explore Problems
           </Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
       
       {/* Bottom spacer */}
       <View className="h-5 bg-dark-bg" />

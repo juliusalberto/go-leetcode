@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"go-leetcode/backend/api/routes"
 	"go-leetcode/backend/internal/authutils"
@@ -18,10 +17,10 @@ import (
 )
 
 func main() {
-	var port string 
-	flag.StringVar(&port, "port", "8080", "Server port")
-	flag.Parse()
+	// Get port from environment variable, default to 8080
+	port := getEnv("PORT", "8080")
 
+	// Load .env file (useful for local development)
 	if err := godotenv.Load(); err != nil {
 		fmt.Printf("Warning, failed to load .env file: %v\n", err)
 	}

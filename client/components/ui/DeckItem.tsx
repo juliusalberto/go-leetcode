@@ -16,9 +16,9 @@ const DeckItem: React.FC<DeckItemProps> = ({ deck, onDelete }) => {
     router.push({
       pathname: `/deck/${deck.id}` as '/deck/[id]',
       params: {
-        id: deck.id, // Include the dynamic segment parameter 'id'
+        id: deck.id,
         name: deck.name,
-        is_public: deck.is_public.toString() // Convert boolean to string for params
+        is_public: deck.is_public.toString()
       },
     });
   };
@@ -30,13 +30,11 @@ const DeckItem: React.FC<DeckItemProps> = ({ deck, onDelete }) => {
     >
       {/* Use border instead of background, increase padding */}
       <View className="border border-[#32415D] rounded-lg p-4 mb-4">
-        {/* Top row: Title and Menu */}
-        <View className="flex-row justify-between items-start mb-2"> {/* Use items-start for better alignment */}
-          <Text className="text-[#F8F9FB] text-lg font-semibold flex-1 mr-2">{deck.name}</Text> {/* Smaller title */}
+        <View className="flex-row justify-between items-start mb-2">
+          <Text className="text-[#F8F9FB] text-lg font-semibold flex-1 mr-2">{deck.name}</Text>
           {!deck.is_public && (
             <Menu>
               <MenuTrigger>
-                {/* Adjust padding/margin for trigger */}
                 <View className="p-1 -mr-1">
                   <Ionicons name="ellipsis-vertical" size={20} color="#8A9DC0" />
                 </View>
@@ -46,7 +44,7 @@ const DeckItem: React.FC<DeckItemProps> = ({ deck, onDelete }) => {
                   // style={{ borderRadius: 100 }} // Optional: Style via options container if needed
                   onSelect={() => onDelete(deck.id)}
                 >
-                  <Text className="p-2 text-red-600">Delete Deck</Text> {/* Destructive text color */}
+                  <Text className="p-2 text-red-600">Delete Deck</Text>
                 </MenuOption>
               </MenuOptions>
             </Menu>
@@ -57,7 +55,7 @@ const DeckItem: React.FC<DeckItemProps> = ({ deck, onDelete }) => {
           <Text className="text-[#ADBAC7] text-sm mb-3">{deck.description}</Text>
         )}
         {/* Bottom row: Stats */}
-        <View className="flex-row justify-end items-center"> {/* Changed justify-between to justify-end */}
+        <View className="flex-row justify-end items-center">
           {/* Removed problem count display */}
           <Text className="text-[#8A9DC0] text-sm">
             {deck.is_public ? 'Public Deck' : 'Your Deck'}

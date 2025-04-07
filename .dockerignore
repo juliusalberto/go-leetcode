@@ -1,0 +1,113 @@
+# flyctl launch added from .gitignore
+**\.env*
+**\.vscode\launch.json
+**\LeetCode-Solutions-master
+venv
+**\client\android
+
+# dependencies
+**\node_modules
+
+# Expo
+**\.expo
+**\client\dist
+**\client\web-build
+**\client\expo-env.d.ts
+
+# Native
+**\*.orig.*
+**\*.jks
+**\*.p8
+**\*.p12
+**\*.key
+**\*.mobileprovision
+
+# Metro
+**\.metro-health-check*
+
+# debug
+**\npm-debug.*
+**\yarn-debug.*
+**\yarn-error.*
+
+# macOS
+**\.DS_Store
+**\*.pem
+
+# local env files
+**\.env*.local
+
+# typescript
+**\*.tsbuildinfo
+
+**\app-example
+**\local_data_dump.sql
+
+# flyctl launch added from client\.gitignore
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+client\**\node_modules
+
+# Expo
+client\**\.expo
+client\**\dist
+client\**\web-build
+client\**\expo-env.d.ts
+
+# Native
+client\**\*.orig.*
+client\**\*.jks
+client\**\*.p8
+client\**\*.p12
+client\**\*.key
+client\**\*.mobileprovision
+
+# Metro
+client\**\.metro-health-check*
+
+# debug
+client\**\npm-debug.*
+client\**\yarn-debug.*
+client\**\yarn-error.*
+
+# macOS
+client\**\.DS_Store
+client\**\*.pem
+
+# local env files
+client\**\.env*.local
+
+# typescript
+client\**\*.tsbuildinfo
+
+client\**\app-example
+
+# flyctl launch added from client\android\.gitignore
+# OSX
+#
+client\android\**\.DS_Store
+
+# Android/IntelliJ
+#
+client\android\**\build
+client\android\**\.idea
+client\android\**\.gradle
+client\android\**\local.properties
+client\android\**\*.iml
+client\android\**\*.hprof
+client\android\**\.cxx
+
+# Bundle artifacts
+client\android\**\*.jsbundle
+
+# flyctl launch added from supabase\.gitignore
+# Supabase
+supabase\**\.branches
+supabase\**\.temp
+
+# dotenvx
+supabase\**\.env.keys
+supabase\**\.env.local
+supabase\**\.env.*.local
+fly.toml

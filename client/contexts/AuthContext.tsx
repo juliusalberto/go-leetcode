@@ -43,37 +43,79 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // --- Function to check profile and navigate ---
   const checkProfileAndNavigate = async (currentSession: Session) => {
     console.log("AuthProvider: Checking profile status for user:", currentSession.user.id);
-    setIsLoading(true);
-    setProfileExists(null);
+
+    // If we already know the profile status, use it directly for navigation checks
+    if (profileExists !== null) {
+        console.log("AuthProvider: Profile status already known:", profileExists, "Skipping fetch.");
+        setIsLoading(false); // Ensure loading is false if we skip fetch
+
+        // --- Navigation Logic (using known status) ---
+        if (profileExists) {
+            // Check if effectively on root page (handles web hash issue)
+            const isEffectivelyRoot = Platform.OS === 'web'
+                ? window.location.pathname === '/'
+                : (pathname === '/' || pathname === '');
+
+            if (isEffectivelyRoot) {
+                console.log("AuthProvider: Profile exists (known) and user is effectively on root page, navigating to dashboard.");
+                router.replace('/(tabs)/dashboard');
+            } else {
+                console.log(`AuthProvider: Profile exists (known) but user is not on root page (pathname: ${pathname}, web path: ${Platform.OS === 'web' ? window.location.pathname : 'N/A'}), not navigating.`);
+            }
+        } else { // Profile does not exist (known)
+             if (isOnCompletePage) {
+                console.log("AuthProvider: Profile missing (known) but already on complete-profile page, not navigating.");
+             } else {
+                console.log("AuthProvider: Profile missing (known), navigating to complete-profile.");
+                router.replace('/complete-profile');
+             }
+        }
+        return; // Exit early since we didn't need to fetch
+    }
+
+    // --- If profile status is unknown (null), proceed to fetch ---
+    console.log("AuthProvider: Profile status unknown, fetching from API...");
+    setIsLoading(true); // Set loading true only when fetching
+    let fetchedProfileExists: boolean | null = null; // Variable to hold the result
     try {
-      console.log("AuthProvider: Fetching auth status with token:", currentSession.access_token.substring(0, 10) + "...");
-      const status = await fetchAuthStatus(currentSession.access_token);
+      const status = await fetchAuthStatus(currentSession.access_token); // Fetch status
       console.log("AuthProvider: Full profile status response:", status);
-      setProfileExists(status.profile_exists);
-      setLeetcodeUsername(status.leetcode_username || null)
+      fetchedProfileExists = status.profile_exists; // Store fetched status
+      setProfileExists(fetchedProfileExists); // Update state
+      setLeetcodeUsername(status.leetcode_username || null);
 
       // --- Navigation Logic ---
-      if (status.profile_exists) {
-        console.log("AuthProvider: Profile exists, navigating to dashboard.");
-        router.replace('/(tabs)/dashboard');
+      if (fetchedProfileExists) {
+        // Only redirect to dashboard if profile exists AND we are on the root index page
+        // Check if effectively on root page (handles web hash issue)
+        const isEffectivelyRoot = Platform.OS === 'web'
+            ? window.location.pathname === '/'
+            : (pathname === '/' || pathname === '');
+
+        if (isEffectivelyRoot) {
+          console.log("AuthProvider: Profile exists (fetched) and user is effectively on root page, navigating to dashboard.");
+          router.replace('/(tabs)/dashboard');
+        } else {
+          console.log(`AuthProvider: Profile exists (fetched) but user is not on root page (pathname: ${pathname}, web path: ${Platform.OS === 'web' ? window.location.pathname : 'N/A'}), not navigating.`);
+        }
       } else {
         // Skip navigation if we're already on the complete-profile page
         // This prevents the loop by using our React state rather than checking window.location
         if (isOnCompletePage) {
           console.log("AuthProvider: Already on complete-profile page, not navigating.");
         } else {
-          console.log("AuthProvider: Profile missing, navigating to complete-profile.");
+          console.log("AuthProvider: Profile missing (fetched), navigating to complete-profile.");
           router.replace('/complete-profile');
         }
       }
-      console.log("AuthProvider: Navigation completed");
+      console.log("AuthProvider: Navigation completed after fetch");
     } catch (error: any) {
        // ... error handling ...
        console.error('AuthProvider: Failed to fetch auth status:', error);
        Toast.show({type: 'error', text1: 'Auth Error', text2: 'Could not verify profile status.'});
-       setProfileExists(null);
+       setProfileExists(null); // Reset on error
        try { await supabase.auth.signOut(); } catch {}
-       // Avoid complex back logic if possible, just go to root on critical error
+       // Avoid complex back logic if possible, just go to root on critical fetch error
        router.replace('/');
     } finally {
       setIsLoading(false);

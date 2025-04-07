@@ -69,7 +69,7 @@ export default function DecksScreen() {
   const renderCombinedItem = ({ item }: { item: ListItem }) => {
     if (item.type === 'header') {
       return (
-        <View className="p-2 mb-2"> {/* Changed padding here */}
+        <View className="p-2 mb-2">
           <Text className="text-[#F8F9FB] text-lg font-bold">{item.title}</Text>
         </View>
       );
@@ -99,7 +99,7 @@ export default function DecksScreen() {
         data={combinedData}
         renderItem={renderCombinedItem}
         keyExtractor={keyExtractor}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80 }} // Add paddingBottom for FAB
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80 }}
         ListEmptyComponent={
           <View className="flex-1 justify-center items-center p-4 mt-10">
             <Text className="text-[#8A9DC0] text-center">

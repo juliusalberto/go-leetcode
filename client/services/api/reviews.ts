@@ -32,7 +32,7 @@ export const useReviews = (options?: UseReviewsOptions) => { // Accept options
 
   const fetchReviews = async ({ pageParam = 1, limit = 10 }: FetchReviewsParams): Promise<Review[]> => {
     const params = new URLSearchParams({
-      status: "due",
+      // status: "due", // Removed to fetch all reviews (due and upcoming)
       per_page: limit.toString(),
       page: pageParam.toString(),
     });

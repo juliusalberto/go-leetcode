@@ -20,8 +20,8 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function IndexScreen() {
-  const { setSession } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const { setSession, isLoading: authLoading } = useAuth();
+  const [isGoogleSignInLoading, setIsGoogleSignInLoading] = useState(false);
   const [fontTimeout, setFontTimeout] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
     Roboto_400Regular,
@@ -65,7 +65,7 @@ export default function IndexScreen() {
   }, []);
   
   const handleGoogleSignIn = async () => {
-    setIsLoading(true);
+    setIsGoogleSignInLoading(true);
     try {
       if (Platform.OS === 'web') {
         // Web platform uses standard OAuth flow with a callback
@@ -134,7 +134,7 @@ export default function IndexScreen() {
     } catch (error: any) {
       console.error('Error during Google Sign-In:', error);
       Alert.alert('Sign In Error', error.message || 'An unexpected error occurred during sign-in.');
-      setIsLoading(false);
+      setIsGoogleSignInLoading(false);
     }
   };
 
@@ -142,13 +142,13 @@ export default function IndexScreen() {
     router.push('/(tabs)/dashboard');
   };
 
-  // Show a loading indicator instead of returning null
-  if (!fontsLoaded && !fontTimeout) {
+  // Show loading indicator when either auth is loading or fonts aren't loaded
+  if (authLoading || (!fontsLoaded && !fontTimeout)) {
     return (
       <View style={{ flex: 1, backgroundColor: '#121212', justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#ffffff" />
         <Text style={{ color: '#ffffff', marginTop: 16, fontWeight: '500' }}>
-          Loading SpaceCode...
+          {authLoading ? 'Checking authentication...' : 'Loading SpaceCode...'}
         </Text>
       </View>
     );
@@ -194,30 +194,21 @@ export default function IndexScreen() {
       <View className="flex-row justify-center px-4 py-3 gap-3">
         <TouchableOpacity
           onPress={handleGoogleSignIn}
+          disabled={isGoogleSignInLoading}
           className='flex-row items-center justify-center w-full max-w-xs p-3 rounded-lg shadow-md bg-white dark:bg-gray-700'
         > 
-            <Ionicons name="logo-google" size={24} color={Platform.OS === 'web' ? '#4285F4' : '#FFFFFF'} className="mr-3" />
-          
-          <Text className="text-lg font-medium text-black dark:text-white">
-            Sign in with Google
-          </Text>
+          {isGoogleSignInLoading ? (
+            <ActivityIndicator size="small" color={Platform.OS === 'web' ? '#4285F4' : '#FFFFFF'} />
+          ) : (
+            <>
+              <Ionicons name="logo-google" size={24} color={Platform.OS === 'web' ? '#4285F4' : '#FFFFFF'} className="mr-3" />
+              <Text className="text-lg font-medium text-black dark:text-white">
+                Sign in with Google
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
-      
-      {/* Secondary Button
-      <View className="flex-row justify-between px-4 gap-3">
-        <TouchableOpacity 
-          className="flex-1 h-12 rounded-xl justify-center items-center px-4"
-          onPress={handleExplore}
-        >
-          <Text 
-            className="text-light-text text-base font-bold"
-            style={{ fontFamily: 'Roboto_700Bold' }}
-          >
-            Explore Problems
-          </Text>
-        </TouchableOpacity>
-      </View> */}
       
       {/* Bottom spacer */}
       <View className="h-5 bg-dark-bg" />

@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 // Ensure environment variable is read correctly. Provide a default for safety, though it should be set.
-const BASE_API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080';
+const BASE_API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://spacecode.fly.dev';
 
 /**
  * Constructs the full API URL by combining the base URL (from environment variables)

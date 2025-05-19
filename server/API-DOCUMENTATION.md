@@ -1,10 +1,13 @@
-# LeetCode Practice API Documentation
+# SPACECODE API Documentation
 
-This document provides information about the LeetCode Practice API endpoints, their functionality, and how to use them.
+This document provides comprehensive information about the SPACECODE (LeetCode Practice Assistant) API endpoints, their functionality, request/response formats, and usage guidelines.
 
-## Table of Contents
-- [Getting Started](#getting-started)
+## 📋 Table of Contents
+- [Overview](#overview)
+- [Base URL](#base-url)
+- [Authentication](#authentication)
 - [API Response Format](#api-response-format)
+- [Rate Limiting](#rate-limiting)
 - [Using the Postman Collection](#using-the-postman-collection)
 - [Endpoints](#endpoints)
   - [Health](#health)
@@ -12,10 +15,30 @@ This document provides information about the LeetCode Practice API endpoints, th
   - [Problems](#problems)
   - [Submissions](#submissions)
   - [Reviews](#reviews)
+- [Error Codes](#error-codes)
 
-## Getting Started
+## Overview
 
-The API server runs at `http://localhost:8080` by default. Make sure the server is running before you try to make API calls.
+The SPACECODE API enables developers to:
+- Access LeetCode problem data
+- Track user submissions and progress
+- Manage spaced repetition review schedules
+- Retrieve user-specific analytics
+
+## Base URL
+
+```
+Production: https://api.spacecode.fly.dev
+Development: http://localhost:8080
+```
+
+## Authentication
+
+The API currently uses simple API key authentication. Include your API key in the request header:
+
+```
+X-API-Key: your_api_key_here
+```
 
 ## API Response Format
 
@@ -50,9 +73,19 @@ For error responses:
 }
 ```
 
+## Rate Limiting
+
+API requests are limited to 100 requests per minute per API key. The following headers are included in responses:
+
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 99
+X-RateLimit-Reset: 1616173799
+```
+
 ## Using the Postman Collection
 
-A Postman collection file named `leetcode-practice-api.postman_collection.json` is provided to help you explore and test the API.
+A Postman collection file named `LeetCode Practice API.postman_collection.json` is provided to help you explore and test the API.
 
 1. Import the collection into Postman
 2. Set the `base_url` environment variable to `http://localhost:8080` (or your server URL)
@@ -69,7 +102,8 @@ Check if the API server is running properly.
 ```json
 {
   "data": {
-    "status": "ok"
+    "status": "ok",
+    "version": "1.0.0"
   },
   "meta": {
     "timestamp": "2025-03-11T12:34:56Z"
@@ -99,6 +133,31 @@ Register a new user.
     "username": "testuser",
     "leetcode_username": "leetcode_testuser",
     "created_at": "2025-03-11T12:34:56Z"
+  },
+  "meta": {
+    "timestamp": "2025-03-11T12:34:56Z"
+  },
+  "errors": []
+}
+```
+
+#### GET /api/users/{id}
+Retrieve user information by ID.
+
+**Response:**
+```json
+{
+  "data": {
+    "id": 1,
+    "username": "testuser",
+    "leetcode_username": "leetcode_testuser",
+    "created_at": "2025-03-11T12:34:56Z",
+    "stats": {
+      "problems_solved": 42,
+      "easy_count": 20,
+      "medium_count": 15,
+      "hard_count": 7
+    }
   },
   "meta": {
     "timestamp": "2025-03-11T12:34:56Z"
@@ -169,6 +228,14 @@ Get a problem by its slug.
 #### GET /api/submissions?user_id={user_id}
 Get submissions for a user.
 
+**Parameters:**
+- `user_id` (required): The ID of the user to get submissions for
+- `limit` (optional): Number of submissions to return (default: 20)
+- `offset` (optional): Number of submissions to skip (default: 0)
+- `problem_id` (optional): Filter by problem ID
+- `from_date` (optional): Filter submissions after this date (ISO 8601 format)
+- `to_date` (optional): Filter submissions before this date (ISO 8601 format)
+
 **Response:**
 ```json
 {
@@ -183,6 +250,11 @@ Get submissions for a user.
     }
   ],
   "meta": {
+    "pagination": {
+      "total": 42,
+      "page": 1,
+      "per_page": 20
+    },
     "timestamp": "2025-03-11T12:34:56Z"
   },
   "errors": []
@@ -197,7 +269,7 @@ Create a new submission.
 {
   "user_id": 1,
   "title": "Two Sum",
-  "title-slug": "two-sum",
+  "title_slug": "two-sum",
   "submitted_at": "2025-03-11T12:30:00Z"
 }
 ```
@@ -250,7 +322,11 @@ Get reviews for a user with optional status filter and pagination.
       "reps": 1,
       "lapses": 0,
       "state": 2,
-      "last_review": "2025-03-09T12:34:56Z"
+      "last_review": "2025-03-09T12:34:56Z",
+      "problem": {
+        "title": "Two Sum",
+        "difficulty": "Easy"
+      }
     }
   ],
   "meta": {
@@ -279,7 +355,8 @@ Create a new review schedule for a submission.
 ```json
 {
   "data": {
-    "id": 1
+    "id": 1,
+    "next_review_at": "2025-03-12T12:34:56Z"
   },
   "meta": {
     "timestamp": "2025-03-11T12:34:56Z"
@@ -319,3 +396,13 @@ Update a review with a rating.
   "errors": []
 }
 ```
+
+## Error Codes
+
+| Code | Description |
+|------|-------------|
+| `authentication_error` | Invalid or missing API key |
+| `validation_error` | Invalid request parameters |
+| `resource_not_found` | The requested resource was not found |
+| `rate_limit_exceeded` | You have exceeded the allowed request rate |
+| `internal_error` | An unexpected error occurred on the server |

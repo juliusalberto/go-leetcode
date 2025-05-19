@@ -67,6 +67,7 @@ export default function ProblemsScreen() {
     hasNextPage,
     isFetching,
     isFetchingNextPage,
+    isLoading, // Use isLoading instead of isInitialLoading
      // Type useInfiniteQuery with the *page* response type, error type, and the full InfiniteData structure for selection/mutation
   } = useInfiniteQuery<ProblemWithStatusResponse, Error, InfiniteData<ProblemWithStatusResponse>, QueryKey, number>({
     queryKey: queryKey,
@@ -239,66 +240,80 @@ export default function ProblemsScreen() {
             }}
           />
         </View>
+        
 
-        {/* Problems List */}
-        <FlatList
-          // Flatten pages data and filter out potential null/undefined items if necessary
-          data={data?.pages.flatMap((page) => page.data).filter((item): item is ProblemWithStatus => !!item) || []}
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-          keyExtractor={(item, index) => `${item?.problem.id}-${item?.problem.frontend_id}-${index}`}
-          renderItem={({ item }) => {
-            return (
-            item ? (
-            <ProblemCard
-              title={`${item?.problem.frontend_id}. ${item?.problem.title}`}
-              subtitle={item?.problem.difficulty}
-              subtitleColor={difficultyColors[item?.problem.difficulty] || '#8A9DC0'}
-              iconName="checkmark-circle-outline"
-              completed={item?.completed}
-              onPress={() => handleProblemPress(item)}
-              rightElement={
-                <Menu>
-                  <MenuTrigger>
-                    <View className="p-2 flex items-center justify-center">
-                      {submittingProblemId === item.problem.id ? (
-                        <ActivityIndicator size="small" color="#6366F1" />
-                      ) : (
-                        <Ionicons name="ellipsis-vertical" size={20} color="#8A9DC0" />
-                      )}
-                    </View>
-                  </MenuTrigger>
-                  <MenuOptions>
-                    <MenuOption style={{ borderRadius: 100 }} onSelect={() => handleAddSubmission(item)}>
-                      <Text className={'flex items-center justify-center p-2 text-black'}>Add Submission</Text>
-                    </MenuOption>
-                    <MenuOption style={{ borderRadius: 100 }} onSelect={() => {
-                      setSelectedProblem(item);
-                      setShowDeckModal(true);
-                    }}>
-                      <Text className={'flex items-center justify-center p-2 text-black'}>Add to Deck</Text>
-                    </MenuOption>
-                  </MenuOptions>
-                </Menu>
-              }
-            />) : null
-          )}}
-          onEndReached={() => hasNextPage && fetchNextPage()}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={() =>
-            isFetchingNextPage ? (
-              <View className="py-4">
-                <ActivityIndicator size="small" color="#6366F1" />
+        {/* Global Loading Indicator */}
+        {isLoading ? (
+          <View className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" color="#6366F1" />
+            <Text className="text-[#8A9DC0] mt-4 text-base" style={{ fontFamily: 'Roboto_400Regular' }}>
+              Loading problems...
+            </Text>
+          </View>
+        ) : (
+          /* Problems List */
+          <FlatList
+            data={data?.pages.flatMap((page) => page.data).filter((item): item is ProblemWithStatus => !!item) || []}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            keyExtractor={(item, index) => `${item?.problem.id}-${item?.problem.frontend_id}-${index}`}
+            renderItem={({ item }) => {
+              return (
+              item ? (
+              <ProblemCard
+                title={`${item?.problem.frontend_id}. ${item?.problem.title}`}
+                subtitle={item?.problem.difficulty}
+                subtitleColor={difficultyColors[item?.problem.difficulty] || '#8A9DC0'}
+                iconName="checkmark-circle-outline"
+                completed={item?.completed}
+                onPress={() => handleProblemPress(item)}
+                rightElement={
+                  <Menu>
+                    <MenuTrigger>
+                      <View className="p-2 flex items-center justify-center">
+                        {submittingProblemId === item.problem.id ? (
+                          <ActivityIndicator size="small" color="#6366F1" />
+                        ) : (
+                          <Ionicons name="ellipsis-vertical" size={20} color="#8A9DC0" />
+                        )}
+                      </View>
+                    </MenuTrigger>
+                    <MenuOptions>
+                      <MenuOption style={{ borderRadius: 100 }} onSelect={() => handleAddSubmission(item)}>
+                        <Text className={'flex items-center justify-center p-2 text-black'}>Add Submission</Text>
+                      </MenuOption>
+                      <MenuOption style={{ borderRadius: 100 }} onSelect={() => {
+                        setSelectedProblem(item);
+                        setShowDeckModal(true);
+                      }}>
+                        <Text className={'flex items-center justify-center p-2 text-black'}>Add to Deck</Text>
+                      </MenuOption>
+                    </MenuOptions>
+                  </Menu>
+                }
+              />) : null
+            )}}
+            onEndReached={() => hasNextPage && fetchNextPage()}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={() =>
+              isFetchingNextPage ? (
+                <View className="py-4">
+                  <ActivityIndicator size="small" color="#6366F1" />
+                </View>
+              ) : null
+            }
+            ListEmptyComponent={() => (
+              <View className="p-4 items-center">
+                {isFetching && !isFetchingNextPage ? (
+                  <ActivityIndicator size="small" color="#6366F1" />
+                ) : (
+                  <Text className="text-[#8A9DC0] text-base text-center">
+                    No problems found. Try adjusting your search or filters.
+                  </Text>
+                )}
               </View>
-            ) : null
-          }
-          ListEmptyComponent={() => (
-            <View className="p-4 items-center">
-              <Text className="text-[#8A9DC0] text-base text-center">
-                No problems found. Try adjusting your search or filters.
-              </Text>
-            </View>
-          )}
-        />
+            )}
+          />
+        )}
         
         {/* Deck Selection Modal */}
         <Modal

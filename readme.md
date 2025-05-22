@@ -31,18 +31,13 @@
 
 - **Automated Tracking**: Seamlessly integrates with LeetCode's GraphQL API to track your submission history
 - **Spaced Repetition**: Intelligently schedules problem reviews based on solving performance
-- **Performance Analytics**: Provides insights on solving patterns and progress metrics
-- **Smart Notifications**: Sends personalized reminders to maintain consistent practice
 - **Problem Database**: Complete catalog of LeetCode problems with filtering by difficulty, topics, and more
-- **Custom Review Algorithm**: Optimized spaced repetition scheduling based on your performance rating
 
 ## 🛠 Tech Stack
 
 ### Backend
 - **Go**: Fast and efficient REST API server
 - **PostgreSQL**: Robust data storage solution
-- **Redis**: High-performance caching
-- **Firebase Cloud Messaging**: Reliable push notifications
 - **Docker**: Containerization for easy deployment
 - **Supabase**: Database hosting and migrations
 - **Fly.io**: Cloud hosting platform

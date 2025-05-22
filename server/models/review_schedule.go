@@ -453,17 +453,17 @@ func ConvertFSRSToReviewSchedule(card fsrs.Card, review *ReviewSchedule) {
 	review.LastReview = card.LastReview
 }
 
-func (s *ReviewScheduleStore) UpdateOrCreateReviewForSubmission(submission *Submission) (ReviewSchedule, error) {
+func (s *ReviewScheduleStore) UpdateOrCreateReviewForSubmission(submission *Submission, rating fsrs.Rating) (ReviewSchedule, error) {
 	// Check if we already have a review for this problem
 	existingReview, err := s.GetReviewByTitleSlug(submission.UserID, submission.TitleSlug)
 
 	if err == nil {
 		fsrsCard := ConvertReviewScheduleToFSRS(&existingReview)
 
-		// Process with "Good" rating as a baseline for solving the problem again
+		// Process with the provided rating
 		fsrsScheduler := fsrs.NewFSRS(fsrs.DefaultParam())
 		now := time.Now().UTC()
-		result := fsrsScheduler.Next(fsrsCard, now, fsrs.Good)
+		result := fsrsScheduler.Next(fsrsCard, now, rating) // Use the provided rating
 
 		// Update the review with new FSRS values
 		existingReview.SubmissionID = submission.ID
@@ -481,9 +481,9 @@ func (s *ReviewScheduleStore) UpdateOrCreateReviewForSubmission(submission *Subm
 	fsrsScheduler := fsrs.NewFSRS(fsrs.DefaultParam())
 	card := fsrs.NewCard()
 
-	// Create initial schedule with "Good" rating
+	// Create initial schedule with the provided rating
 	now := time.Now().UTC()
-	result := fsrsScheduler.Next(card, now, fsrs.Good)
+	result := fsrsScheduler.Next(card, now, rating) // Use the provided rating
 
 	newReview := ReviewSchedule{
 		SubmissionID: submission.ID,

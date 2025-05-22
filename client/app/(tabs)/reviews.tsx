@@ -8,12 +8,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useSubmissionsApi, SubmissionRequest } from '../../services/api/submissions';
 import { MenuProvider, Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-native-popup-menu';
 import Toast from 'react-native-toast-message';
+import Modal from 'react-native-modal'; // Import Modal
 
 export default function ReviewsScreen() {
   const queryClient = useQueryClient();
   const submissionsApi = useSubmissionsApi();
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const { session } = useAuth(); // <-- Get session
+  const [isModalVisible, setModalVisible] = useState(false); // State for modal visibility
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null); // State for selected review
   
   // Fetch reviews using infinite query, enable only when session exists
   const {
@@ -40,13 +43,28 @@ export default function ReviewsScreen() {
     return animatedValues.current.get(reviewId)!;
   };
 
+  // Function to open modal
+  const openRatingModal = (review: Review) => {
+    setSelectedReview(review);
+    setModalVisible(true);
+  };
+
+  // Function to close modal
+  const closeRatingModal = () => {
+    setModalVisible(false);
+    setSelectedReview(null);
+  };
+
   // Mark review as completed
-  const markAsCompleted = useCallback(async (review: Review) => {
+  const markAsCompleted = useCallback(async (rating: number) => {
+    if (!selectedReview) return;
+
     try {
-      setRemovingIds(prev => new Set(prev).add(review.id));
+      setRemovingIds(prev => new Set(prev).add(selectedReview.id));
+      closeRatingModal(); // Close modal after selection
       
       // Create animation
-      const animValue = getAnimatedValue(review.id);
+      const animValue = getAnimatedValue(selectedReview.id);
       
       // Start fade out animation
       Animated.timing(animValue, {
@@ -55,12 +73,12 @@ export default function ReviewsScreen() {
         useNativeDriver: true
       }).start();
       
-      // TODO: change the title_slug: review.title to review.title_slug (probably have to return the title slug as well)
       const submission: SubmissionRequest = {
         is_internal: true,
-        title: review.title,
-        title_slug: review.title_slug,
-        submitted_at: new Date().toISOString()
+        title: selectedReview.title,
+        title_slug: selectedReview.title_slug,
+        submitted_at: new Date().toISOString(),
+        rating: rating, // Add rating to submission
       }
       
       // Process submission
@@ -70,7 +88,7 @@ export default function ReviewsScreen() {
       Toast.show({
         type: 'success',
         text1: 'Review Completed',
-        text2: `Successfully marked "${review.title}" as reviewed`,
+        text2: `Successfully marked "${selectedReview.title}" as reviewed`,
       });
       
       // After animation completes, invalidate query
@@ -81,7 +99,7 @@ export default function ReviewsScreen() {
       // Remove from removing set after animation
       setRemovingIds(prev => {
         const newSet = new Set(prev);
-        newSet.delete(review.id);
+        newSet.delete(selectedReview.id);
         return newSet;
       });
       }, 500);
@@ -96,11 +114,13 @@ export default function ReviewsScreen() {
       
       setRemovingIds(prev => {
         const newSet = new Set(prev);
-        newSet.delete(review.id);
+        if (selectedReview) {
+            newSet.delete(selectedReview.id);
+        }
         return newSet;
       });
     }
-  }, [queryClient]);
+  }, [queryClient, selectedReview]);
   
   // Flatten pages data for FlatList and ensure we never have null/undefined pages
   const reviews: Review[] = data?.pages?.flatMap(page => page || []) || [];
@@ -142,7 +162,7 @@ export default function ReviewsScreen() {
               <MenuOptions>
                 <MenuOption
                   style={{ borderRadius: 100 }}
-                  onSelect={() => markAsCompleted(review)}
+                  onSelect={() => openRatingModal(review)}
                   disabled={isRemoving}
                 >
                   <Text className={'flex items-center justify-center p-2 text-black'}>
@@ -209,6 +229,50 @@ export default function ReviewsScreen() {
             />
           )}
         </View>
+
+        {/* Rating Modal */}
+        <Modal
+          isVisible={isModalVisible}
+          onBackdropPress={closeRatingModal}
+          style={{
+            justifyContent: 'flex-end',
+            margin: 0,
+          }}
+        >
+          <View className="bg-[#1E293B] p-6 rounded-t-3xl">
+            <Text className="text-white text-xl font-bold mb-4 text-center">Rate Your Review</Text>
+            <TouchableOpacity
+              className="bg-[#3B82F6] p-4 rounded-lg mb-3"
+              onPress={() => markAsCompleted(1)} // 1: Again
+            >
+              <Text className="text-white text-lg font-semibold text-center">Again</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="bg-[#F59E0B] p-4 rounded-lg mb-3"
+              onPress={() => markAsCompleted(2)} // 2: Hard
+            >
+              <Text className="text-white text-lg font-semibold text-center">Hard</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="bg-[#10B981] p-4 rounded-lg mb-3"
+              onPress={() => markAsCompleted(3)} // 3: Good
+            >
+              <Text className="text-white text-lg font-semibold text-center">Good</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="bg-[#6366F1] p-4 rounded-lg mb-4"
+              onPress={() => markAsCompleted(4)} // 4: Easy
+            >
+              <Text className="text-white text-lg font-semibold text-center">Easy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="bg-transparent border border-[#4B5563] p-3 rounded-lg"
+              onPress={closeRatingModal}
+            >
+              <Text className="text-[#9CA3AF] text-base font-medium text-center">Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
       </View>
       <Toast />
     </MenuProvider>

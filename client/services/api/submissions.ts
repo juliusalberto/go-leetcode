@@ -8,6 +8,7 @@ export interface SubmissionRequest {
   title: string;
   title_slug: string;
   submitted_at: string;
+  rating?: number; // Add optional rating property
 }
 
 export interface SubmissionResponse {

@@ -229,6 +229,7 @@ func (h *ReviewHandler) ProcessSubmission(w http.ResponseWriter, r *http.Request
         Title               string `json:"title"`
         TitleSlug           string `json:"title_slug"`
         SubmittedAt         string `json:"submitted_at"`
+        Rating              int    `json:"rating,omitempty"`
     }
 
     if err := json.NewDecoder(r.Body).Decode(&subReq); err != nil {
@@ -305,7 +306,12 @@ func (h *ReviewHandler) ProcessSubmission(w http.ResponseWriter, r *http.Request
 	}
     
     // 3. Process the review using the existing method
-    review, err := h.store.UpdateOrCreateReviewForSubmission(&sub)
+    rating := fsrs.Rating(subReq.Rating)
+    if subReq.Rating < 1 || subReq.Rating > 4 {
+        rating = fsrs.Good
+    }
+
+    review, err := h.store.UpdateOrCreateReviewForSubmission(&sub, rating)
     if err != nil {
         response.Error(w, http.StatusInternalServerError, "server_error", 
             fmt.Sprintf("Failed to process review: %v", err))
